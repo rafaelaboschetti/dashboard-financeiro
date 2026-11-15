@@ -13,6 +13,7 @@
     "expo-font": "~57.0.4",
     "expo-linking": "~57.0.14",
     "expo-router": "~57.0.31",
+    "expo-splash-screen": "~57.0.11",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -35,7 +36,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "doctor": "npx expo-doctor",
+    "apk": "npx eas-cli@latest build -p android --profile preview",
+    "apk:status": "npx eas-cli@latest build:list --platform android --limit 5",
+    "eas:login": "npx eas-cli@latest login --device --non-interactive",
+    "eas:whoami": "npx eas-cli@latest whoami"
   },
   "private": true
 }
