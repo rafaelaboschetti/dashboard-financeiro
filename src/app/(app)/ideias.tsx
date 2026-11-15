@@ -31,6 +31,7 @@ const items: { icon: IconName; title: string; text: string; status: Status }[] =
   { icon: 'key-outline', title: 'Trocar senha e gerenciar equipe', text: 'Trocar senha e nome em Meu perfil; administrador muda o perfil de acesso e remove membros.', status: 'feito' },
   { icon: 'alarm-outline', title: 'Avisos de contas e lembretes', text: 'Notificação no celular às 9h: contas conforme o "avisar antes" e lembretes no dia (ligar em Meu perfil).', status: 'feito' },
   { icon: 'download-outline', title: 'Exportar para Excel (CSV)', text: 'Movimentações e contas a pagar em planilha, para enviar ao contador (em Relatórios).', status: 'feito' },
+  { icon: 'help-circle-outline', title: 'Guia de primeiros passos', text: 'Passo a passo das funções, adaptado ao perfil de cada pessoa (Mais → Como usar o app).', status: 'feito' },
   // Próximas etapas
   { icon: 'cloud-outline', title: 'Banco de dados na nuvem', text: 'Hoje os dados ficam só no aparelho. Com Supabase/Firebase, a equipe compartilha os mesmos dados em vários aparelhos.', status: 'proximo' },
   { icon: 'lock-closed-outline', title: 'Recuperar senha por e-mail', text: 'Depende de um servidor para enviar o e-mail (a troca de senha já existe em Meu perfil).', status: 'futuro' },

@@ -20,6 +20,8 @@ export const KEYS = {
   loginAttempts: 'fin:login-attempts',
   /** Preferência deste aparelho: avisos de contas a vencer ligados? */
   notifications: 'fin:notifications',
+  /** Pessoas (ids) que já viram o guia de primeiros passos neste aparelho. */
+  guideSeen: 'fin:guide-seen',
   data: (companyId: string) => `fin:data:${companyId}`,
 };
 

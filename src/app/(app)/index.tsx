@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MonthlyBars } from '@/components/MonthlyBars';
@@ -7,6 +8,7 @@ import { Screen } from '@/components/Screen';
 import { Badge, Card, EmptyState, Grid, IconCircle, Muted, ProgressBar, SectionHeader, StatCard } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
+import { hasSeenGuide } from '@/db/guide';
 import { billStatus, totals, transactionsOfMonth } from '@/lib/finance';
 import { currentMonthKey, dueText, formatMoney, monthLabel, shortDateBR, todayISO } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
@@ -31,6 +33,21 @@ export default function DashboardScreen() {
   const dueTotal = pending.reduce((s, b) => s + b.amount, 0);
   const openReminders = reminders.filter((r) => !r.done).sort((a, b) => a.date.localeCompare(b.date));
   const firstName = user?.name.split(' ')[0] ?? '';
+
+  // Primeira vez desta pessoa neste aparelho: abre o guia de primeiros passos.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    hasSeenGuide(userId)
+      .then((seen) => {
+        if (!seen && !cancelled) router.push('/guia');
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   return (
     <Screen title={`Olá, ${firstName}!`} subtitle={company?.name}>

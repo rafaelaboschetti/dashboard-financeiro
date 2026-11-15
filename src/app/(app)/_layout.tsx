@@ -44,6 +44,7 @@ export default function AppLayout() {
         <Tabs.Screen name="relatorios" options={{ ...extra('Relatórios'), tabBarIcon: tabIcon('bar-chart', 'bar-chart-outline') }} />
         <Tabs.Screen name="categorias" options={{ ...extra('Categorias'), tabBarIcon: tabIcon('pricetags', 'pricetags-outline') }} />
         <Tabs.Screen name="equipe" options={{ ...extra('Equipe'), tabBarIcon: tabIcon('people', 'people-outline') }} />
+        <Tabs.Screen name="guia" options={{ ...extra('Como usar o app'), tabBarIcon: tabIcon('help-circle', 'help-circle-outline') }} />
         <Tabs.Screen name="ideias" options={{ ...extra('Roadmap'), tabBarIcon: tabIcon('bulb', 'bulb-outline') }} />
         <Tabs.Screen name="perfil" options={{ ...extra('Meu perfil'), tabBarIcon: tabIcon('person-circle', 'person-circle-outline') }} />
         <Tabs.Screen name="mais" options={{ title: 'Mais', href: isWide ? null : undefined, tabBarIcon: tabIcon('ellipsis-horizontal-circle', 'ellipsis-horizontal-circle-outline') }} />
