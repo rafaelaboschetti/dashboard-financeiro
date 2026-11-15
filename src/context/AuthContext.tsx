@@ -49,10 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const u = await verifyLogin(email, password);
-      if (!u) return 'E-mail ou senha incorretos.';
-      await setSessionUserId(u.id);
-      await hydrate(u);
+      const result = await verifyLogin(email, password);
+      if (!result.user) return result.error;
+      await setSessionUserId(result.user.id);
+      await hydrate(result.user);
       return null;
     },
     [hydrate],
@@ -80,6 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const addMember = useCallback(
     async (input: { name: string; email: string; password: string; role: Role }) => {
       if (!user) return 'Sessão expirada.';
+      // Confere o perfil aqui também, e não só escondendo o botão na tela.
+      if (user.role !== 'admin') return 'Somente administradores podem adicionar usuários.';
       try {
         await createUser({ ...input, companyId: user.companyId });
         await hydrate(user);

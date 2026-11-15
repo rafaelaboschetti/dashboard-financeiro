@@ -62,6 +62,19 @@ Dicas, caso o build falhe:
 - Instale pacotes sempre com `npx expo install <pacote>` (e não `npm install <pacote>`), para pegar a versão compatível com o SDK.
 - O EAS usa `npm ci`, então o `package-lock.json` precisa estar atualizado e commitado.
 
+## Segurança
+
+O app ainda não tem servidor: login, permissões e dados ficam no aparelho. Proteções atuais:
+
+- **Dados criptografados** com AES-256-GCM. No Android/iOS a chave fica no Keystore/Keychain (`expo-secure-store`); valores adulterados ou forjados são rejeitados.
+- **Senhas** com PBKDF2-SHA256 (100 mil iterações). Contas antigas são atualizadas no primeiro login.
+- **Bloqueio** após 5 tentativas de login erradas (30 s, dobrando até 15 min).
+- **Sessão** expira após 7 dias sem uso.
+- **Perfis** conferidos também nas funções de gravação, não só escondendo botões.
+- **Android**: backup desligado e permissões desnecessárias bloqueadas (sobrepor outros apps, armazenamento externo etc.).
+
+Limitações conhecidas: na **versão web** a chave fica no próprio navegador, então quem tem acesso ao navegador consegue ler os dados. E, como tudo roda no aparelho, as regras podem ser contornadas por quem tem acesso total a ele (root). A correção definitiva é o backend (etapa 2 do [PLANO.md](PLANO.md)).
+
 ## Estrutura
 
 ```

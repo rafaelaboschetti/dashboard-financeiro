@@ -33,7 +33,7 @@ interface DataContextValue extends CompanyData {
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { company } = useAuth();
+  const { company, canEdit } = useAuth();
   const companyId = company?.id ?? null;
   const [data, setData] = useState<CompanyData>(emptyCompanyData);
   // Os dados só valem para a empresa cujo id foi carregado (evita gravar dados de uma empresa na outra).
@@ -58,7 +58,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (companyId && ready) write(KEYS.data(companyId), data);
   }, [data, companyId, ready]);
 
-  const patch = useCallback((fn: (d: CompanyData) => CompanyData) => setData(fn), []);
+  // Toda alteração passa por `patch`, que confere o perfil: o perfil Leitura não altera nada,
+  // mesmo que alguma tela esqueça de esconder um botão.
+  const patch = useCallback(
+    (fn: (d: CompanyData) => CompanyData) => {
+      if (!canEdit) return;
+      setData(fn);
+    },
+    [canEdit],
+  );
 
   const addBill = useCallback((b: NewBill) => patch((d) => ({ ...d, bills: [...d.bills, { ...b, id: uid(), paid: false }] })), [patch]);
 

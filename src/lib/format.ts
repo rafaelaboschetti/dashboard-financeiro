@@ -1,10 +1,13 @@
+import * as Crypto from 'expo-crypto';
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 export const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 export const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
+/** Identificador aleatório criptograficamente seguro (Math.random é previsível). */
 export function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return Crypto.randomUUID();
 }
 
 /* ---------- dinheiro (centavos) ---------- */
