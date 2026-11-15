@@ -14,6 +14,7 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 - **Relatórios**: resultado do mês, margem e despesas por categoria.
 - **Categorias** personalizáveis, com cor.
 - **Equipe e permissões**: perfis Administrador, Financeiro e Leitura.
+- **Edição de registros**: contas, movimentações, metas, lembretes e categorias. Editar uma conta paga atualiza a saída no caixa (e vice-versa); renomear uma categoria atualiza os lançamentos.
 - **Layout responsivo**: abas embaixo no celular, menu lateral em tablet/computador.
 
 > Os dados ficam salvos **no próprio aparelho** (AsyncStorage). Cada celular tem os seus dados; ainda não há sincronização na nuvem. Veja o [PLANO.md](PLANO.md) para os próximos passos.

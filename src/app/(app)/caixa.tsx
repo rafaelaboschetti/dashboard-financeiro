@@ -12,16 +12,17 @@ import { brToISO, currentMonthKey, formatMoney, isoToBR, monthLabel, shiftMonthK
 import { confirmAction } from '@/lib/confirm';
 import { useNewParam } from '@/lib/useNewParam';
 import { colors, spacing } from '@/theme';
-import { TransactionType } from '@/types';
+import { Transaction, TransactionType } from '@/types';
 
 type Filter = 'todos' | TransactionType;
 
 export default function CashScreen() {
   const { canEdit } = useAuth();
-  const { transactions, categories, addTransaction, addCategory, removeTransaction } = useData();
+  const { transactions, categories, addTransaction, updateTransaction, addCategory, removeTransaction } = useData();
   const [month, setMonth] = useState(currentMonthKey());
   const [filter, setFilter] = useState<Filter>('todos');
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   const [type, setType] = useState<TransactionType>('in');
   const [description, setDescription] = useState('');
@@ -32,12 +33,15 @@ export default function CashScreen() {
 
   const catsFor = (t: TransactionType) => categories.filter((c) => c.type === t);
 
-  function openForm() {
-    setType('in');
-    setDescription('');
-    setAmount(0);
-    setDate(isoToBR(todayISO()));
-    setCategory(catsFor('in')[0]?.name ?? 'Outras receitas');
+  /** Abre o formulário vazio (nova movimentação) ou preenchido com a movimentação a editar. */
+  function openForm(tx?: Transaction) {
+    const t = tx?.type ?? 'in';
+    setEditing(tx ?? null);
+    setType(t);
+    setDescription(tx?.description ?? '');
+    setAmount(tx?.amount ?? 0);
+    setDate(isoToBR(tx?.date ?? todayISO()));
+    setCategory(tx?.category ?? catsFor(t)[0]?.name ?? 'Outras receitas');
     setErrors({});
     setOpen(true);
   }
@@ -56,7 +60,9 @@ export default function CashScreen() {
     if (!iso) e.date = 'Data inválida.';
     setErrors(e);
     if (Object.keys(e).length || !iso) return;
-    addTransaction({ type, description: description.trim(), amount, date: iso, category });
+    const values = { type, description: description.trim(), amount, date: iso, category };
+    if (editing) updateTransaction(editing.id, values);
+    else addTransaction(values);
     setMonth(iso.slice(0, 7));
     setOpen(false);
   }
@@ -67,7 +73,7 @@ export default function CashScreen() {
   const colorOf = (name: string) => categories.find((c) => c.name === name)?.color ?? colors.textMuted;
 
   return (
-    <Screen title="Fluxo de caixa" subtitle="Valores que entram e saem da empresa" fab={canEdit ? { label: 'Nova movimentação', onPress: openForm } : undefined}>
+    <Screen title="Fluxo de caixa" subtitle="Valores que entram e saem da empresa" fab={canEdit ? { label: 'Nova movimentação', onPress: () => openForm() } : undefined}>
       <View style={styles.monthNav}>
         <IconButton icon="chevron-back" label="Mês anterior" color={colors.text} onPress={() => setMonth(shiftMonthKey(month, -1))} />
         <Text style={styles.monthText}>{monthLabel(month)}</Text>
@@ -114,21 +120,26 @@ export default function CashScreen() {
               <Text style={[styles.amount, { color: t.type === 'in' ? colors.income : colors.expense }]}>
                 {t.type === 'in' ? '+' : '-'} {formatMoney(t.amount)}
               </Text>
+              {canEdit && <IconButton icon="create-outline" label="Editar movimentação" onPress={() => openForm(t)} />}
               {canEdit && <IconButton icon="trash-outline" label="Excluir movimentação" onPress={() => confirmAction('Excluir movimentação', `Excluir "${t.description}"?`, () => removeTransaction(t.id))} />}
             </View>
           ))
         )}
       </Card>
 
-      <FormModal visible={open} title="Nova movimentação" onClose={() => setOpen(false)} onSubmit={submit}>
-        <Segmented
-          value={type}
-          onChange={changeType}
-          options={[
-            { value: 'in', label: 'Entrada' },
-            { value: 'out', label: 'Saída' },
-          ]}
-        />
+      <FormModal visible={open} title={editing ? 'Editar movimentação' : 'Nova movimentação'} submitLabel={editing ? 'Salvar alterações' : 'Salvar'} onClose={() => setOpen(false)} onSubmit={submit}>
+        {editing?.billId ? (
+          <Muted>Pagamento de conta: a conta a pagar será atualizada junto.</Muted>
+        ) : (
+          <Segmented
+            value={type}
+            onChange={changeType}
+            options={[
+              { value: 'in', label: 'Entrada' },
+              { value: 'out', label: 'Saída' },
+            ]}
+          />
+        )}
         <View style={{ height: spacing.lg }} />
         <TextField label="Descrição" value={description} onChangeText={setDescription} error={errors.description} placeholder={type === 'in' ? 'Ex.: Venda de produtos' : 'Ex.: Compra de material'} />
         <MoneyField label="Valor" value={amount} onChange={setAmount} error={errors.amount} />

@@ -15,10 +15,11 @@ import { Goal } from '@/types';
 
 export default function GoalsScreen() {
   const { canEdit } = useAuth();
-  const { goals, addGoal, contributeToGoal, removeGoal } = useData();
+  const { goals, addGoal, updateGoal, contributeToGoal, removeGoal } = useData();
   const today = todayISO();
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Goal | null>(null);
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState(0);
   const [current, setCurrent] = useState(0);
@@ -28,11 +29,13 @@ export default function GoalsScreen() {
   const [contribGoal, setContribGoal] = useState<Goal | null>(null);
   const [contrib, setContrib] = useState(0);
 
-  function openForm() {
-    setTitle('');
-    setTarget(0);
-    setCurrent(0);
-    setDeadline(isoToBR(addMonths(today, 6)));
+  /** Abre o formulário vazio (nova meta) ou preenchido com a meta a editar. */
+  function openForm(goal?: Goal) {
+    setEditing(goal ?? null);
+    setTitle(goal?.title ?? '');
+    setTarget(goal?.target ?? 0);
+    setCurrent(goal?.current ?? 0);
+    setDeadline(isoToBR(goal?.deadline ?? addMonths(today, 6)));
     setErrors({});
     setOpen(true);
   }
@@ -46,7 +49,9 @@ export default function GoalsScreen() {
     if (!iso) e.deadline = 'Data inválida.';
     setErrors(e);
     if (Object.keys(e).length || !iso) return;
-    addGoal({ title: title.trim(), target, current, deadline: iso });
+    const values = { title: title.trim(), target, current, deadline: iso };
+    if (editing) updateGoal(editing.id, values);
+    else addGoal(values);
     setOpen(false);
   }
 
@@ -56,7 +61,7 @@ export default function GoalsScreen() {
   }
 
   return (
-    <Screen title="Metas" subtitle="Objetivos financeiros da empresa" fab={canEdit ? { label: 'Nova meta', onPress: openForm } : undefined}>
+    <Screen title="Metas" subtitle="Objetivos financeiros da empresa" fab={canEdit ? { label: 'Nova meta', onPress: () => openForm() } : undefined}>
       {goals.length === 0 ? (
         <Card>
           <EmptyState icon="flag-outline" title="Nenhuma meta cadastrada" text={canEdit ? 'Crie uma meta como "Reserva de emergência" ou "Faturamento do mês".' : undefined} />
@@ -95,6 +100,7 @@ export default function GoalsScreen() {
                 {canEdit && (
                   <View style={styles.actions}>
                     <Button small icon="add" label="Adicionar valor" onPress={() => { setContrib(0); setContribGoal(g); }} style={{ flex: 1 }} />
+                    <IconButton icon="create-outline" label="Editar meta" onPress={() => openForm(g)} />
                     <IconButton icon="trash-outline" label="Excluir meta" color={colors.expense} onPress={() => confirmAction('Excluir meta', `Excluir "${g.title}"?`, () => removeGoal(g.id))} />
                   </View>
                 )}
@@ -104,10 +110,10 @@ export default function GoalsScreen() {
         </View>
       )}
 
-      <FormModal visible={open} title="Nova meta" submitLabel="Criar meta" onClose={() => setOpen(false)} onSubmit={submit}>
+      <FormModal visible={open} title={editing ? 'Editar meta' : 'Nova meta'} submitLabel={editing ? 'Salvar alterações' : 'Criar meta'} onClose={() => setOpen(false)} onSubmit={submit}>
         <TextField label="Nome da meta" value={title} onChangeText={setTitle} error={errors.title} placeholder="Ex.: Reserva de emergência" />
         <MoneyField label="Valor a alcançar" value={target} onChange={setTarget} error={errors.target} />
-        <MoneyField label="Quanto já tem (opcional)" value={current} onChange={setCurrent} />
+        <MoneyField label={editing ? 'Quanto já tem' : 'Quanto já tem (opcional)'} value={current} onChange={setCurrent} />
         <DateField label="Prazo" value={deadline} onChange={setDeadline} error={errors.deadline} />
       </FormModal>
 

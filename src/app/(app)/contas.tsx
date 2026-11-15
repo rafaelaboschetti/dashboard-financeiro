@@ -12,7 +12,7 @@ import { addDays, brToISO, currentMonthKey, dueText, formatMoney, isoToBR, month
 import { confirmAction } from '@/lib/confirm';
 import { useNewParam } from '@/lib/useNewParam';
 import { colors, spacing } from '@/theme';
-import { Recurrence } from '@/types';
+import { Bill, Recurrence } from '@/types';
 
 type Filter = 'todas' | 'pendentes' | 'vencidas' | 'pagas';
 
@@ -26,9 +26,10 @@ const statusUI: Record<BillStatus, { label?: string; tone: Tone }> = {
 
 export default function BillsScreen() {
   const { canEdit } = useAuth();
-  const { bills, categories, addBill, addCategory, toggleBillPaid, removeBill } = useData();
+  const { bills, categories, addBill, updateBill, addCategory, toggleBillPaid, removeBill } = useData();
   const [filter, setFilter] = useState<Filter>('pendentes');
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Bill | null>(null);
   const today = todayISO();
   const month = currentMonthKey();
 
@@ -44,14 +45,16 @@ export default function BillsScreen() {
 
   const expenseCats = categories.filter((c) => c.type === 'out');
 
-  function openForm() {
-    setDescription('');
-    setAmount(0);
-    setDue(isoToBR(addDays(today, 7)));
-    setCategory(expenseCats[0]?.name ?? 'Outros');
-    setSupplier('');
-    setRecurrence('none');
-    setRemind(1);
+  /** Abre o formulário vazio (nova conta) ou preenchido com a conta a editar. */
+  function openForm(bill?: Bill) {
+    setEditing(bill ?? null);
+    setDescription(bill?.description ?? '');
+    setAmount(bill?.amount ?? 0);
+    setDue(isoToBR(bill?.dueDate ?? addDays(today, 7)));
+    setCategory(bill?.category ?? expenseCats[0]?.name ?? 'Outros');
+    setSupplier(bill?.supplier ?? '');
+    setRecurrence(bill?.recurrence ?? 'none');
+    setRemind(bill?.remindDaysBefore ?? 1);
     setErrors({});
     setOpen(true);
   }
@@ -65,9 +68,14 @@ export default function BillsScreen() {
     if (!dueISO) e.due = 'Data inválida.';
     setErrors(e);
     if (Object.keys(e).length || !dueISO) return;
-    addBill({ description: description.trim(), amount, dueDate: dueISO, category, supplier: supplier.trim() || undefined, recurrence, remindDaysBefore: remind });
+    const values = { description: description.trim(), amount, dueDate: dueISO, category, supplier: supplier.trim() || undefined, recurrence, remindDaysBefore: remind };
+    if (editing) {
+      updateBill(editing.id, values);
+    } else {
+      addBill(values);
+      setFilter('pendentes');
+    }
     setOpen(false);
-    setFilter('pendentes');
   }
 
   const list = useMemo(() => {
@@ -86,7 +94,7 @@ export default function BillsScreen() {
   const paidTotal = bills.filter((b) => b.paid && b.paidAt && monthKey(b.paidAt) === month).reduce((s, b) => s + b.amount, 0);
 
   return (
-    <Screen title="Contas a pagar" subtitle="Lembretes de vencimento e pagamentos" fab={canEdit ? { label: 'Nova conta', onPress: openForm } : undefined}>
+    <Screen title="Contas a pagar" subtitle="Lembretes de vencimento e pagamentos" fab={canEdit ? { label: 'Nova conta', onPress: () => openForm() } : undefined}>
       <Grid>
         <StatCard label="A pagar no mês" value={formatMoney(pendingTotal)} icon="calendar-outline" tone="warning" />
         <StatCard label="Vencidas" value={formatMoney(overdueTotal)} icon="alert-circle-outline" tone={overdueTotal ? 'expense' : 'neutral'} />
@@ -140,6 +148,7 @@ export default function BillsScreen() {
                   {canEdit && (
                     <View style={styles.actions}>
                       <Button small variant={b.paid ? 'secondary' : 'primary'} icon={b.paid ? 'arrow-undo-outline' : 'checkmark'} label={b.paid ? 'Desfazer' : 'Marcar como paga'} onPress={() => toggleBillPaid(b.id)} />
+                      <IconButton icon="create-outline" label="Editar conta" onPress={() => openForm(b)} />
                       <IconButton icon="trash-outline" label="Excluir conta" color={colors.expense} onPress={() => confirmAction('Excluir conta', `Excluir "${b.description}"?`, () => removeBill(b.id))} />
                     </View>
                   )}
@@ -150,7 +159,8 @@ export default function BillsScreen() {
         </View>
       )}
 
-      <FormModal visible={open} title="Nova conta a pagar" submitLabel="Salvar conta" onClose={() => setOpen(false)} onSubmit={submit}>
+      <FormModal visible={open} title={editing ? 'Editar conta' : 'Nova conta a pagar'} submitLabel={editing ? 'Salvar alterações' : 'Salvar conta'} onClose={() => setOpen(false)} onSubmit={submit}>
+        {editing?.paid && <Muted style={{ marginBottom: spacing.md }}>Esta conta já foi paga: a saída no caixa será atualizada junto.</Muted>}
         <TextField label="Descrição" value={description} onChangeText={setDescription} error={errors.description} placeholder="Ex.: Aluguel do escritório" />
         <MoneyField label="Valor" value={amount} onChange={setAmount} error={errors.amount} />
         <DateField label="Vencimento" value={due} onChange={setDue} error={errors.due} />

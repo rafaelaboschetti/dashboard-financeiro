@@ -24,9 +24,10 @@ const priorityUI: Record<Priority, { label: string; tone: Tone }> = {
 
 export default function RemindersScreen() {
   const { canEdit } = useAuth();
-  const { reminders, addReminder, toggleReminder, removeReminder } = useData();
+  const { reminders, addReminder, updateReminder, toggleReminder, removeReminder } = useData();
   const [filter, setFilter] = useState<Filter>('pendentes');
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Reminder | null>(null);
   const today = todayISO();
 
   const [title, setTitle] = useState('');
@@ -35,11 +36,13 @@ export default function RemindersScreen() {
   const [priority, setPriority] = useState<Priority>('media');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function openForm() {
-    setTitle('');
-    setNotes('');
-    setDate(isoToBR(today));
-    setPriority('media');
+  /** Abre o formulário vazio (novo lembrete) ou preenchido com o lembrete a editar. */
+  function openForm(reminder?: Reminder) {
+    setEditing(reminder ?? null);
+    setTitle(reminder?.title ?? '');
+    setNotes(reminder?.notes ?? '');
+    setDate(isoToBR(reminder?.date ?? today));
+    setPriority(reminder?.priority ?? 'media');
     setErrors({});
     setOpen(true);
   }
@@ -52,9 +55,14 @@ export default function RemindersScreen() {
     if (!iso) e.date = 'Data inválida.';
     setErrors(e);
     if (Object.keys(e).length || !iso) return;
-    addReminder({ title: title.trim(), notes: notes.trim() || undefined, date: iso, priority });
+    const values = { title: title.trim(), notes: notes.trim() || undefined, date: iso, priority };
+    if (editing) {
+      updateReminder(editing.id, values);
+    } else {
+      addReminder(values);
+      setFilter('pendentes');
+    }
     setOpen(false);
-    setFilter('pendentes');
   }
 
   const sorted = [...reminders].sort((a, b) => a.date.localeCompare(b.date));
@@ -83,13 +91,14 @@ export default function RemindersScreen() {
             {!r.done && <Badge label={p.label} tone={p.tone} />}
           </View>
         </View>
+        {canEdit && <IconButton icon="create-outline" label="Editar lembrete" onPress={() => openForm(r)} />}
         {canEdit && <IconButton icon="trash-outline" label="Excluir lembrete" onPress={() => confirmAction('Excluir lembrete', `Excluir "${r.title}"?`, () => removeReminder(r.id))} />}
       </View>
     );
   }
 
   return (
-    <Screen title="Lembretes" subtitle="Compromissos e avisos gerais da empresa" back fab={canEdit ? { label: 'Novo lembrete', onPress: openForm } : undefined}>
+    <Screen title="Lembretes" subtitle="Compromissos e avisos gerais da empresa" back fab={canEdit ? { label: 'Novo lembrete', onPress: () => openForm() } : undefined}>
       <View style={{ marginBottom: spacing.sm }}>
         <Chips
           value={filter}
@@ -116,7 +125,7 @@ export default function RemindersScreen() {
           ))
       )}
 
-      <FormModal visible={open} title="Novo lembrete" submitLabel="Salvar lembrete" onClose={() => setOpen(false)} onSubmit={submit}>
+      <FormModal visible={open} title={editing ? 'Editar lembrete' : 'Novo lembrete'} submitLabel={editing ? 'Salvar alterações' : 'Salvar lembrete'} onClose={() => setOpen(false)} onSubmit={submit}>
         <TextField label="O que precisa lembrar?" value={title} onChangeText={setTitle} error={errors.title} placeholder="Ex.: Reunião com o contador" />
         <TextField label="Observações (opcional)" value={notes} onChangeText={setNotes} placeholder="Detalhes, local, contatos..." multiline style={{ minHeight: 80, paddingTop: 12, textAlignVertical: 'top' }} />
         <DateField label="Data" value={date} onChange={setDate} error={errors.date} />

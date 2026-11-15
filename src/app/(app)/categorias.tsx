@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { TextField } from '@/components/Fields';
+import { FormModal } from '@/components/FormModal';
 import { Screen } from '@/components/Screen';
 import { Card, IconButton, Muted, SectionHeader } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
@@ -9,6 +11,18 @@ import { useData } from '@/context/DataContext';
 import { confirmAction } from '@/lib/confirm';
 import { categoryPalette, colors, radius, spacing } from '@/theme';
 import { Category } from '@/types';
+
+/** Seletor de cor usado ao criar e ao editar um rótulo. */
+function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  return (
+    <View style={styles.colors}>
+      <Muted>Cor:</Muted>
+      {categoryPalette.map((c) => (
+        <Pressable key={c} onPress={() => onChange(c)} accessibilityRole="button" accessibilityLabel={`Cor ${c}`} accessibilityState={{ selected: c === value }} hitSlop={6} style={[styles.swatch, { backgroundColor: c }, c === value && styles.swatchActive]} />
+      ))}
+    </View>
+  );
+}
 
 /** Campo para cadastrar um novo rótulo (nome + cor) dentro do bloco de entradas ou saídas. */
 function AddLabel({ type, placeholder }: { type: Category['type']; placeholder: string }) {
@@ -46,19 +60,32 @@ function AddLabel({ type, placeholder }: { type: Category['type']; placeholder: 
         </Pressable>
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <View style={styles.colors}>
-        <Muted>Cor:</Muted>
-        {categoryPalette.map((c) => (
-          <Pressable key={c} onPress={() => setColor(c)} accessibilityRole="button" accessibilityLabel={`Cor ${c}`} accessibilityState={{ selected: c === color }} hitSlop={6} style={[styles.swatch, { backgroundColor: c }, c === color && styles.swatchActive]} />
-        ))}
-      </View>
+      <ColorPicker value={color} onChange={setColor} />
     </View>
   );
 }
 
 export default function CategoriesScreen() {
   const { canEdit } = useAuth();
-  const { categories, removeCategory } = useData();
+  const { categories, updateCategory, removeCategory } = useData();
+  const [editing, setEditing] = useState<Category | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState(categoryPalette[0]);
+  const [editError, setEditError] = useState('');
+
+  function openEdit(c: Category) {
+    setEditing(c);
+    setEditName(c.name);
+    setEditColor(c.color);
+    setEditError('');
+  }
+
+  function submitEdit() {
+    if (!editing) return;
+    const err = updateCategory(editing.id, { name: editName, color: editColor });
+    if (err) return setEditError(err);
+    setEditing(null);
+  }
 
   const group = (type: Category['type'], title: string, hint: string, placeholder: string) => {
     const items = categories.filter((c) => c.type === type);
@@ -72,6 +99,7 @@ export default function CategoriesScreen() {
             <View key={c.id} style={[styles.row, (i > 0 || canEdit) && styles.border]}>
               <View style={[styles.dot, { backgroundColor: c.color }]} />
               <Text style={styles.name}>{c.name}</Text>
+              {canEdit && <IconButton icon="create-outline" label={`Editar ${c.name}`} onPress={() => openEdit(c)} />}
               {canEdit && <IconButton icon="trash-outline" label={`Excluir ${c.name}`} onPress={() => confirmAction('Excluir rótulo', `Excluir "${c.name}"? Lançamentos antigos continuam com este nome.`, () => removeCategory(c.id))} />}
             </View>
           ))}
@@ -86,6 +114,20 @@ export default function CategoriesScreen() {
         <View style={styles.col}>{group('out', 'Contas a pagar / saídas', 'Rótulos usados ao cadastrar contas a pagar e saídas.', 'Novo rótulo de conta a pagar')}</View>
         <View style={styles.col}>{group('in', 'Entradas / receitas', 'Rótulos usados ao registrar entradas de dinheiro.', 'Novo rótulo de entrada')}</View>
       </View>
+
+      <FormModal visible={!!editing} title="Editar rótulo" submitLabel="Salvar alterações" onClose={() => setEditing(null)} onSubmit={submitEdit}>
+        <TextField
+          label="Nome"
+          value={editName}
+          onChangeText={(t) => {
+            setEditName(t);
+            setEditError('');
+          }}
+          error={editError}
+          hint="Contas e movimentações com este rótulo passam a usar o novo nome."
+        />
+        <ColorPicker value={editColor} onChange={setEditColor} />
+      </FormModal>
     </Screen>
   );
 }
