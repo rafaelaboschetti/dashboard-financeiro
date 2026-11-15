@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen';
 import { Badge, Card, Muted, SectionHeader } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { roleInfo } from '@/lib/roles';
+import { isValidEmail, passwordError } from '@/lib/validation';
 import { colors, spacing } from '@/theme';
 import { Role } from '@/types';
 
@@ -31,8 +32,9 @@ export default function TeamScreen() {
   async function submit() {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = 'Informe o nome.';
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = 'E-mail inválido.';
-    if (password.length < 6) e.password = 'Mínimo de 6 caracteres.';
+    if (!isValidEmail(email)) e.email = 'E-mail inválido.';
+    const pwError = passwordError(password);
+    if (pwError) e.password = pwError;
     setErrors(e);
     if (Object.keys(e).length) return;
     const err = await addMember({ name, email, password, role });
@@ -55,7 +57,7 @@ export default function TeamScreen() {
               </Text>
               <Muted>{m.email}</Muted>
             </View>
-            <Badge label={roleInfo[m.role].label} tone={m.role === 'admin' ? 'primary' : m.role === 'financeiro' ? 'info' : 'neutral'} />
+            <Badge label={roleInfo[m.role].label} tone={roleInfo[m.role].tone} />
           </View>
         ))}
       </Card>

@@ -33,7 +33,10 @@ Na tela de cadastro, deixe marcado **"Começar com dados de exemplo"** para ver 
 
 ## Verificações
 
+Os testes ficam em `__tests__/` e cobrem as regras de negócio (pagar/desfazer conta, recorrência, edição sincronizada, exclusões sem registros órfãos, categorias), a formatação de dinheiro e datas, e o login/armazenamento (hash de senha, bloqueio, sessão, criptografia e adulteração).
+
 ```bash
+npm test           # testes automatizados (Jest)
 npm run typecheck  # TypeScript
 npm run lint       # ESLint
 npm run doctor     # confere dependências e configuração do Expo
@@ -82,11 +85,14 @@ Limitações conhecidas: na **versão web** a chave fica no próprio navegador, 
 src/
   app/          rotas (Expo Router): (auth)/ login e cadastro, (app)/ telas do app
   components/   componentes de interface reutilizáveis
-  context/      AuthContext (usuários e sessão) e DataContext (dados da empresa)
+  domain/       regras de negócio em funções puras (testáveis, sem React)
+  context/      AuthContext (usuários e sessão) e DataContext (estado + permissões + gravação)
   db/           persistência local, usuários e dados de exemplo
   lib/          formatação, regras financeiras e hooks
   theme/        cores, espaçamentos e breakpoints
 assets/         ícones e imagem da tela de abertura
+__tests__/      testes automatizados (Jest)
+test-utils/     simulações usadas pelos testes
 ```
 
 Valores monetários são guardados em **centavos (inteiros)** e datas em ISO (`AAAA-MM-DD`).

@@ -7,6 +7,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { TextField } from '@/components/Fields';
 import { Button } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { isValidEmail, passwordError } from '@/lib/validation';
 import { colors, spacing } from '@/theme';
 
 export default function RegisterScreen() {
@@ -23,8 +24,9 @@ export default function RegisterScreen() {
     const e: Record<string, string> = {};
     if (!companyName.trim()) e.companyName = 'Informe o nome da empresa.';
     if (!name.trim()) e.name = 'Informe seu nome.';
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = 'E-mail inválido.';
-    if (password.length < 6) e.password = 'A senha precisa ter pelo menos 6 caracteres.';
+    if (!isValidEmail(email)) e.email = 'E-mail inválido.';
+    const pwError = passwordError(password);
+    if (pwError) e.password = pwError;
     setErrors(e);
     if (Object.keys(e).length) return;
 

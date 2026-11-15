@@ -8,7 +8,9 @@ import { Screen } from '@/components/Screen';
 import { Card, IconButton, Muted, SectionHeader } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
+import { categoryUsage, FALLBACK_CATEGORY } from '@/domain/companyData';
 import { confirmAction } from '@/lib/confirm';
+import { notify } from '@/lib/notify';
 import { categoryPalette, colors, radius, spacing } from '@/theme';
 import { Category } from '@/types';
 
@@ -67,11 +69,20 @@ function AddLabel({ type, placeholder }: { type: Category['type']; placeholder: 
 
 export default function CategoriesScreen() {
   const { canEdit } = useAuth();
-  const { categories, updateCategory, removeCategory } = useData();
+  const { categories, bills, transactions, updateCategory, removeCategory } = useData();
   const [editing, setEditing] = useState<Category | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState(categoryPalette[0]);
   const [editError, setEditError] = useState('');
+
+  function askRemove(c: Category) {
+    const usage = categoryUsage({ bills, transactions, categories, goals: [], reminders: [] }, c);
+    const detail = usage ? ` Os ${usage} lançamento(s) com este rótulo passarão para "${FALLBACK_CATEGORY[c.type]}".` : '';
+    confirmAction('Excluir rótulo', `Excluir "${c.name}"?${detail}`, () => {
+      const err = removeCategory(c.id);
+      if (err) notify('Não foi possível excluir', err);
+    });
+  }
 
   function openEdit(c: Category) {
     setEditing(c);
@@ -100,7 +111,7 @@ export default function CategoriesScreen() {
               <View style={[styles.dot, { backgroundColor: c.color }]} />
               <Text style={styles.name}>{c.name}</Text>
               {canEdit && <IconButton icon="create-outline" label={`Editar ${c.name}`} onPress={() => openEdit(c)} />}
-              {canEdit && <IconButton icon="trash-outline" label={`Excluir ${c.name}`} onPress={() => confirmAction('Excluir rótulo', `Excluir "${c.name}"? Lançamentos antigos continuam com este nome.`, () => removeCategory(c.id))} />}
+              {canEdit && <IconButton icon="trash-outline" label={`Excluir ${c.name}`} onPress={() => askRemove(c)} />}
             </View>
           ))}
         </Card>

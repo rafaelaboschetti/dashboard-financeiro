@@ -27,7 +27,7 @@ export default function ProfileScreen() {
           </View>
           <View style={{ gap: 4 }}>
             <Text style={styles.name}>{user.name}</Text>
-            <Badge label={roleInfo[user.role].label} tone="primary" />
+            <Badge label={roleInfo[user.role].label} tone={roleInfo[user.role].tone} />
           </View>
         </View>
         {rows.map(([label, value]) => (

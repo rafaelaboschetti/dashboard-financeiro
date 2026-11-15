@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, IconCircle, Muted } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { roleInfo } from '@/lib/roles';
 import { useData } from '@/context/DataContext';
 import { colors, spacing } from '@/theme';
 
@@ -35,7 +36,7 @@ export default function MoreScreen() {
           <Text style={styles.userName}>{user?.name}</Text>
           <Muted>{company?.name}</Muted>
         </View>
-        <Badge label={user?.role === 'admin' ? 'Administrador' : user?.role === 'financeiro' ? 'Financeiro' : 'Leitura'} tone="primary" />
+        {user && <Badge label={roleInfo[user.role].label} tone={roleInfo[user.role].tone} />}
       </Card>
 
       <Card style={{ padding: 0, marginTop: spacing.lg }}>
