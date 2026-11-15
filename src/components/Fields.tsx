@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 
 import { addDays, centsFromInput, formatMoney, maskDate, todayISO, isoToBR } from '@/lib/format';
+import { passwordStrength } from '@/lib/validation';
 import { colors, radius, spacing } from '@/theme';
 
 export function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
@@ -24,6 +25,62 @@ export function TextField({ label, error, hint, style, ...props }: TextInputProp
         {...props}
         style={[styles.input, error ? { borderColor: colors.expense } : null, style]}
       />
+    </Field>
+  );
+}
+
+/** Caixa de seleção com texto (e explicação opcional embaixo). */
+export function Checkbox({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <Pressable onPress={() => onChange(!checked)} accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={label} style={styles.checkbox}>
+      <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={24} color={colors.primary} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={styles.checkboxLabel}>{label}</Text>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * Campo de senha com botão de mostrar/ocultar. Com `showStrength`, mostra a força
+ * da senha enquanto a pessoa digita (use em senhas novas, não no login).
+ */
+export function PasswordField({ label, error, hint, showStrength, style, ...props }: TextInputProps & { label: string; error?: string; hint?: string; showStrength?: boolean }) {
+  const [visible, setVisible] = useState(false);
+  const strength = passwordStrength(props.value ?? '');
+  const strengthColor = [colors.border, colors.expense, colors.warning, colors.info, colors.income][strength.score];
+  return (
+    <Field label={label} error={error} hint={hint}>
+      <View>
+        <TextInput
+          placeholderTextColor={colors.textMuted}
+          accessibilityLabel={label}
+          autoCapitalize="none"
+          autoCorrect={false}
+          {...props}
+          secureTextEntry={!visible}
+          style={[styles.input, { paddingRight: 48 }, error ? { borderColor: colors.expense } : null, style]}
+        />
+        <Pressable
+          onPress={() => setVisible((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={visible ? 'Ocultar senha' : 'Mostrar senha'}
+          hitSlop={8}
+          style={styles.eye}>
+          <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
+        </Pressable>
+      </View>
+      {showStrength && strength.score > 0 && (
+        <View style={styles.strengthRow} accessibilityLabel={`Força da senha: ${strength.label}`}>
+          <View style={styles.strengthBars}>
+            {[1, 2, 3, 4].map((i) => (
+              <View key={i} style={[styles.strengthBar, { backgroundColor: i <= strength.score ? strengthColor : colors.border }]} />
+            ))}
+          </View>
+          <Text style={[styles.strengthLabel, { color: strengthColor }]}>{strength.label}</Text>
+        </View>
+      )}
     </Field>
   );
 }
@@ -162,6 +219,13 @@ const styles = StyleSheet.create({
   hint: { fontSize: 12, color: colors.textMuted },
   error: { fontSize: 12, color: colors.expense, fontWeight: '600' },
   input: { minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md, fontSize: 16, color: colors.text, backgroundColor: colors.surface },
+  checkbox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xl },
+  checkboxLabel: { color: colors.text, fontSize: 15 },
+  eye: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 48, alignItems: 'center', justifyContent: 'center' },
+  strengthRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  strengthBars: { flex: 1, flexDirection: 'row', gap: 4 },
+  strengthBar: { flex: 1, height: 4, borderRadius: 2 },
+  strengthLabel: { fontSize: 12, fontWeight: '700', minWidth: 60, textAlign: 'right' },
   shortcuts: { flexDirection: 'row', gap: spacing.sm, marginTop: 2 },
   shortcut: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.neutralSoft },
   shortcutText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },

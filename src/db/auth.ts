@@ -88,8 +88,12 @@ function formatWait(seconds: number): string {
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-/** A sessão expira depois de 7 dias sem abrir o app. */
-const SESSION_TTL_MS = 7 * 24 * 60 * 60_000;
+/**
+ * Com "Manter conectado", a sessão fica gravada e expira depois de 30 dias sem abrir o app
+ * (cada abertura renova o prazo). Sem essa opção, nada é gravado: a sessão vive só na memória
+ * e termina quando o app (ou a aba do navegador) é fechado.
+ */
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60_000;
 
 type Session = { userId: string; expiresAt: number };
 
@@ -113,8 +117,10 @@ export async function getSessionUserId(): Promise<string | null> {
   return session.userId;
 }
 
-export async function setSessionUserId(id: string | null): Promise<void> {
-  if (id) await write<Session>(KEYS.session, { userId: id, expiresAt: Date.now() + SESSION_TTL_MS });
+/** Abre (ou renova) a sessão. Com `remember: false` a sessão não é gravada no aparelho. */
+export async function setSessionUserId(id: string | null, options: { remember?: boolean } = {}): Promise<void> {
+  const remember = options.remember ?? true;
+  if (id && remember) await write<Session>(KEYS.session, { userId: id, expiresAt: Date.now() + SESSION_TTL_MS });
   else await remove(KEYS.session);
 }
 
@@ -157,6 +163,7 @@ export async function changePassword(userId: string, currentPassword: string, ne
   const user = users.find((u) => u.id === userId);
   if (!user) return 'Usuário não encontrado.';
   if (!(await checkPassword(user, currentPassword)).ok) return 'A senha atual está incorreta.';
+  if (newPassword === currentPassword) return 'A nova senha precisa ser diferente da atual.';
   const salt = Crypto.randomUUID();
   const updated: User = { ...user, salt, passwordHash: await pbkdf2Hash(newPassword, salt, PBKDF2_ITERATIONS) };
   await write(KEYS.users, (await getUsers()).map((u) => (u.id === userId ? updated : u)));

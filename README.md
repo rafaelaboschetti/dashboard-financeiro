@@ -14,7 +14,7 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 - **Relatórios**: resultado do mês, margem e despesas por categoria.
 - **Categorias** personalizáveis, com cor.
 - **Equipe e permissões**: perfis Administrador, Financeiro e Leitura; o administrador muda o perfil e remove membros (a empresa nunca fica sem administrador).
-- **Minha conta**: trocar senha (conferindo a atual) e nome.
+- **Minha conta**: trocar senha (conferindo a atual e recusando repetir a mesma) e nome; botão para mostrar/ocultar a senha.
 - **Edição de registros**: contas, movimentações, metas, lembretes e categorias. Editar uma conta paga atualiza a saída no caixa (e vice-versa); renomear uma categoria atualiza os lançamentos.
 - **Layout responsivo**: abas embaixo no celular, menu lateral em tablet/computador.
 
@@ -72,9 +72,9 @@ Dicas, caso o build falhe:
 O app ainda não tem servidor: login, permissões e dados ficam no aparelho. Proteções atuais:
 
 - **Dados criptografados** com AES-256-GCM. No Android/iOS a chave fica no Keystore/Keychain (`expo-secure-store`); valores adulterados ou forjados são rejeitados.
-- **Senhas** com PBKDF2-SHA256 (100 mil iterações). Contas antigas são atualizadas no primeiro login.
+- **Senhas** com PBKDF2-SHA256 (100 mil iterações). Senhas novas exigem 8+ caracteres com letras e números, com indicador de força. Contas antigas são atualizadas no primeiro login.
 - **Bloqueio** após 5 tentativas de login erradas (30 s, dobrando até 15 min).
-- **Sessão** expira após 7 dias sem uso.
+- **Sessão**: com "Manter conectado", dura 30 dias sem uso (cada abertura renova); sem essa opção, termina ao fechar o app.
 - **Perfis** conferidos também nas funções de gravação, não só escondendo botões.
 - **Android**: backup desligado e permissões desnecessárias bloqueadas (sobrepor outros apps, armazenamento externo etc.).
 

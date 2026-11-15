@@ -14,7 +14,8 @@ interface AuthContextValue {
   isAdmin: boolean;
   /** Administrador e Financeiro podem editar; Leitura só visualiza. */
   canEdit: boolean;
-  login: (email: string, password: string) => Promise<string | null>;
+  /** `remember`: manter conectado por 30 dias (senão, a sessão termina ao fechar o app). */
+  login: (email: string, password: string, remember?: boolean) => Promise<string | null>;
   register: (input: { companyName: string; name: string; email: string; password: string; withDemo: boolean }) => Promise<string | null>;
   logout: () => Promise<void>;
   addMember: (input: { name: string; email: string; password: string; role: Role }) => Promise<string | null>;
@@ -58,10 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [hydrate]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, remember = true) => {
       const result = await verifyLogin(email, password);
       if (!result.user) return result.error;
-      await setSessionUserId(result.user.id);
+      await setSessionUserId(result.user.id, { remember });
       await hydrate(result.user);
       return null;
     },

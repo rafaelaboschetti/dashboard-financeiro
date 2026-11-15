@@ -88,6 +88,7 @@ describe('conta e equipe', () => {
   it('troca a senha só com a senha atual correta', async () => {
     const id = (await auth.getUsers()).find((x) => x.email === 'bia@x.com')!.id;
     expect(await auth.changePassword(id, 'errada', 'novaSenha1')).toBe('A senha atual está incorreta.');
+    expect(await auth.changePassword(id, 'segredo123', 'segredo123')).toBe('A nova senha precisa ser diferente da atual.');
     expect(await auth.changePassword(id, 'segredo123', 'novaSenha1')).toBeNull();
     const login = async (pw: string) => {
       mockStore.delete('fin:login-attempts'); // isola do bloqueio testado acima
@@ -128,12 +129,24 @@ describe('sessão e adulteração', () => {
     expect(await auth.getSessionUserId()).toBeNull();
   });
 
-  it('a sessão expira depois de 7 dias', async () => {
-    mockStore.set('fin:session', saved);
+  it('com "Manter conectado", a sessão dura 30 dias sem uso e cada abertura renova o prazo', async () => {
     const now = Date.now();
-    jest.spyOn(Date, 'now').mockReturnValue(now + 8 * 864e5);
-    expect(await auth.getSessionUserId()).toBeNull();
+    const at = (days: number) => jest.spyOn(Date, 'now').mockReturnValue(now + days * 864e5);
+    await auth.setSessionUserId('u-old', { remember: true });
+    at(29);
+    expect(await auth.getSessionUserId()).toBe('u-old'); // abriu no dia 29: renova até o dia 59
+    at(58);
+    expect(await auth.getSessionUserId()).toBe('u-old');
+    at(89);
+    expect(await auth.getSessionUserId()).toBeNull(); // 31 dias sem abrir
     jest.restoreAllMocks();
+  });
+
+  it('sem "Manter conectado", nada é gravado: ao reabrir o app pede login', async () => {
+    await auth.setSessionUserId('u-old', { remember: true });
+    await auth.setSessionUserId('u-old', { remember: false });
+    expect(mockStore.has('fin:session')).toBe(false);
+    expect(await auth.getSessionUserId()).toBeNull();
   });
 });
 

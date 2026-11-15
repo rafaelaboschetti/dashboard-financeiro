@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { TextField } from '@/components/Fields';
+import { PasswordField, TextField } from '@/components/Fields';
 import { FormModal } from '@/components/FormModal';
 
 import { Screen } from '@/components/Screen';
@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { roleInfo } from '@/lib/roles';
 import { isoToBR } from '@/lib/format';
 import { notify } from '@/lib/notify';
+import { passwordError } from '@/lib/validation';
 import { colors, spacing } from '@/theme';
 
 export default function ProfileScreen() {
@@ -21,7 +22,7 @@ export default function ProfileScreen() {
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [pwError, setPwError] = useState('');
+  const [pwErrors, setPwErrors] = useState<{ current?: string; password?: string; confirm?: string }>({});
   if (!user || !company) return null;
 
   async function submitName() {
@@ -31,11 +32,19 @@ export default function ProfileScreen() {
   }
 
   async function submitPassword() {
-    if (password !== confirm) return setPwError('As senhas novas não conferem.');
+    const e: typeof pwErrors = {};
+    if (!current) e.current = 'Digite sua senha atual.';
+    const ruleError = passwordError(password);
+    if (ruleError) e.password = ruleError;
+    else if (password === current) e.password = 'A nova senha precisa ser diferente da atual.';
+    if (!e.password && confirm !== password) e.confirm = 'As senhas não conferem.';
+    setPwErrors(e);
+    if (Object.keys(e).length) return;
+
     const err = await changePassword(current, password);
-    if (err) return setPwError(err);
+    if (err) return setPwErrors(err.includes('atual está incorreta') ? { current: err } : { password: err });
     setPwOpen(false);
-    notify('Senha alterada', 'Use a nova senha no próximo login.');
+    notify('Senha alterada', 'Pronto! Use a nova senha no próximo login.');
   }
 
   const rows = [
@@ -83,7 +92,7 @@ export default function ProfileScreen() {
             setCurrent('');
             setPassword('');
             setConfirm('');
-            setPwError('');
+            setPwErrors({});
             setPwOpen(true);
           }}
         />
@@ -95,9 +104,17 @@ export default function ProfileScreen() {
       </FormModal>
 
       <FormModal visible={pwOpen} title="Trocar senha" submitLabel="Salvar nova senha" onClose={() => setPwOpen(false)} onSubmit={submitPassword}>
-        <TextField label="Senha atual" value={current} onChangeText={setCurrent} secureTextEntry autoComplete="current-password" />
-        <TextField label="Nova senha" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
-        <TextField label="Repita a nova senha" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" error={pwError} />
+        <PasswordField label="Senha atual" value={current} onChangeText={setCurrent} autoComplete="current-password" error={pwErrors.current} />
+        <PasswordField
+          label="Nova senha"
+          value={password}
+          onChangeText={setPassword}
+          autoComplete="new-password"
+          error={pwErrors.password}
+          hint="Mínimo de 8 caracteres, com letras e números."
+          showStrength
+        />
+        <PasswordField label="Repita a nova senha" value={confirm} onChangeText={setConfirm} autoComplete="new-password" error={pwErrors.confirm} />
       </FormModal>
     </Screen>
   );

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Segmented, TextField } from '@/components/Fields';
+import { PasswordField, Segmented, TextField } from '@/components/Fields';
 import { FormModal } from '@/components/FormModal';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, IconButton, Muted, SectionHeader } from '@/components/ui';
@@ -116,7 +116,7 @@ export default function TeamScreen() {
       <FormModal visible={open} title="Adicionar usuário" submitLabel="Adicionar" onClose={() => setOpen(false)} onSubmit={submit}>
         <TextField label="Nome" value={name} onChangeText={setName} error={errors.name} placeholder="Nome completo" />
         <TextField label="E-mail" value={email} onChangeText={setEmail} error={errors.email} autoCapitalize="none" keyboardType="email-address" placeholder="pessoa@empresa.com" />
-        <TextField label="Senha provisória" value={password} onChangeText={setPassword} error={errors.password} secureTextEntry hint="A pessoa poderá trocar depois." />
+        <PasswordField label="Senha provisória" value={password} onChangeText={setPassword} error={errors.password} autoComplete="new-password" hint="Mínimo de 8 caracteres, com letras e números. A pessoa pode trocar depois em Meu perfil." showStrength />
         <Segmented label="Perfil de acesso" value={role} onChange={setRole} options={roleOptions} />
         <Muted>{roleInfo[role].description}</Muted>
       </FormModal>
