@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Finanças da Empresa",
-    "slug": "financas-empresa",
+    "slug": "trabalho-react",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
@@ -10,6 +10,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.financasempresa.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,11 +26,19 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-font"
     ],
     "scheme": "financasempresa",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c0a84ac4-3d20-4f5b-b9ed-287225e09548"
+      }
+    },
+    "owner": "rafaelabosquetti"
   }
 }
