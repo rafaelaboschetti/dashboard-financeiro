@@ -18,6 +18,8 @@ export const KEYS = {
   companies: 'fin:companies',
   session: 'fin:session',
   loginAttempts: 'fin:login-attempts',
+  /** Preferência deste aparelho: avisos de contas a vencer ligados? */
+  notifications: 'fin:notifications',
   data: (companyId: string) => `fin:data:${companyId}`,
 };
 

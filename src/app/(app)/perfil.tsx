@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Switch, Text, View } from 'react-native';
 
 import { PasswordField, TextField } from '@/components/Fields';
 import { FormModal } from '@/components/FormModal';
-
 import { Screen } from '@/components/Screen';
 import { Badge, Button, Card, Muted } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/context/NotificationsContext';
 import { roleInfo } from '@/lib/roles';
 import { isoToBR } from '@/lib/format';
 import { notify } from '@/lib/notify';
@@ -15,6 +15,8 @@ import { colors, spacing } from '@/theme';
 
 export default function ProfileScreen() {
   const { user, company, logout, changePassword, updateMyName } = useAuth();
+  const notifications = useNotifications();
+  const [notifBusy, setNotifBusy] = useState(false);
   const [nameOpen, setNameOpen] = useState(false);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
@@ -24,6 +26,15 @@ export default function ProfileScreen() {
   const [confirm, setConfirm] = useState('');
   const [pwErrors, setPwErrors] = useState<{ current?: string; password?: string; confirm?: string }>({});
   if (!user || !company) return null;
+
+  async function toggleNotifications(on: boolean) {
+    setNotifBusy(true);
+    const result = await notifications.setEnabled(on);
+    setNotifBusy(false);
+    if (on && !result) {
+      notify('Avisos bloqueados', 'Para receber os avisos, permita as notificações do app nas configurações do celular.');
+    }
+  }
 
   async function submitName() {
     const err = await updateMyName(name);
@@ -73,6 +84,33 @@ export default function ProfileScreen() {
           </View>
         ))}
       </Card>
+      <Card style={{ marginTop: spacing.xl, gap: spacing.sm }}>
+        <View style={styles.notifRow}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.notifTitle}>Avisos de contas a vencer</Text>
+            <Muted>
+              {!notifications.supported
+                ? 'Disponível no app de celular (o navegador não agenda avisos).'
+                : notifications.enabled
+                  ? `Ligado neste aparelho · ${notifications.scheduledCount} aviso(s) agendado(s), às 9h, conforme o "avisar antes" de cada conta.`
+                  : 'Receba um aviso no celular antes do vencimento de cada conta.'}
+            </Muted>
+          </View>
+          {notifications.supported && (
+            <Switch
+              value={notifications.enabled}
+              onValueChange={toggleNotifications}
+              disabled={notifBusy}
+              trackColor={{ true: colors.primary, false: colors.border }}
+              accessibilityLabel="Avisos de contas a vencer"
+            />
+          )}
+        </View>
+        {notifications.supported && notifications.blocked && !notifications.enabled && (
+          <Button small variant="secondary" icon="settings-outline" label="Abrir configurações do celular" onPress={notifications.openSettings} />
+        )}
+      </Card>
+
       <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
         <Button
           label="Alterar meu nome"
@@ -125,6 +163,8 @@ const styles = StyleSheet.create({
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 26, fontWeight: '800' },
   name: { fontSize: 20, fontWeight: '800', color: colors.text },
+  notifRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  notifTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
   value: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 1, textAlign: 'right' },
 });

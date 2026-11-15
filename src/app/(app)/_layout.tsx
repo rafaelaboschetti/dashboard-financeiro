@@ -4,6 +4,7 @@ import { ComponentProps } from 'react';
 import { ColorValue } from 'react-native';
 
 import { DataProvider } from '@/context/DataContext';
+import { NotificationsProvider } from '@/context/NotificationsContext';
 import { useLayout } from '@/lib/useLayout';
 import { colors } from '@/theme';
 
@@ -24,6 +25,7 @@ export default function AppLayout() {
 
   return (
     <DataProvider>
+      <NotificationsProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -46,6 +48,7 @@ export default function AppLayout() {
         <Tabs.Screen name="perfil" options={{ ...extra('Meu perfil'), tabBarIcon: tabIcon('person-circle', 'person-circle-outline') }} />
         <Tabs.Screen name="mais" options={{ title: 'Mais', href: isWide ? null : undefined, tabBarIcon: tabIcon('ellipsis-horizontal-circle', 'ellipsis-horizontal-circle-outline') }} />
       </Tabs>
+      </NotificationsProvider>
     </DataProvider>
   );
 }

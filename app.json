@@ -23,8 +23,7 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.DUMP",
-        "android.permission.VIBRATE"
+        "android.permission.DUMP"
       ]
     },
     "web": {
@@ -45,7 +44,14 @@
           "backgroundColor": "#0F766E"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0F766E"
+        }
+      ]
     ],
     "scheme": "financasempresa",
     "experiments": {
