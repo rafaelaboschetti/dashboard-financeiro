@@ -12,7 +12,7 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 - **Caixa**: entradas e saídas por categoria.
 - **Metas**: objetivos financeiros com progresso.
 - **Lembretes** gerais da empresa.
-- **Relatórios**: resultado do mês, margem e despesas por categoria.
+- **Relatórios**: resultado do mês, margem e despesas por categoria; **exportar para Excel (CSV)** as movimentações do mês, todas as movimentações e as contas a pagar (no celular abre o menu Compartilhar; na web, baixa o arquivo).
 - **Categorias** personalizáveis, com cor.
 - **Equipe e permissões**: perfis Administrador, Financeiro e Leitura; o administrador muda o perfil e remove membros (a empresa nunca fica sem administrador).
 - **Minha conta**: trocar senha (conferindo a atual e recusando repetir a mesma) e nome; botão para mostrar/ocultar a senha.

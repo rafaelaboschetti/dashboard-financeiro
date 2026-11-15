@@ -29,12 +29,13 @@ const items: { icon: IconName; title: string; text: string; status: Status }[] =
   { icon: 'phone-portrait-outline', title: 'Layout responsivo', text: 'Celular (abas), tablet e desktop (menu lateral).', status: 'feito' },
   { icon: 'create-outline', title: 'Editar registros', text: 'Editar contas, movimentações, metas, lembretes e categorias (contas pagas e o caixa ficam sincronizados).', status: 'feito' },
   { icon: 'key-outline', title: 'Trocar senha e gerenciar equipe', text: 'Trocar senha e nome em Meu perfil; administrador muda o perfil de acesso e remove membros.', status: 'feito' },
-  { icon: 'alarm-outline', title: 'Avisos de contas a vencer', text: 'Notificação no celular às 9h, conforme o "avisar antes" de cada conta (ligar em Meu perfil).', status: 'feito' },
+  { icon: 'alarm-outline', title: 'Avisos de contas e lembretes', text: 'Notificação no celular às 9h: contas conforme o "avisar antes" e lembretes no dia (ligar em Meu perfil).', status: 'feito' },
+  { icon: 'download-outline', title: 'Exportar para Excel (CSV)', text: 'Movimentações e contas a pagar em planilha, para enviar ao contador (em Relatórios).', status: 'feito' },
   // Próximas etapas
   { icon: 'cloud-outline', title: 'Banco de dados na nuvem', text: 'Hoje os dados ficam só no aparelho. Com Supabase/Firebase, a equipe compartilha os mesmos dados em vários aparelhos.', status: 'proximo' },
   { icon: 'lock-closed-outline', title: 'Recuperar senha por e-mail', text: 'Depende de um servidor para enviar o e-mail (a troca de senha já existe em Meu perfil).', status: 'futuro' },
   { icon: 'camera-outline', title: 'Anexar boleto ou comprovante', text: 'Foto/PDF ligado à conta paga.', status: 'proximo' },
-  { icon: 'document-text-outline', title: 'Exportar PDF / Excel', text: 'Relatórios para enviar ao contador.', status: 'proximo' },
+  { icon: 'document-text-outline', title: 'Exportar relatório em PDF', text: 'Relatório formatado para imprimir ou enviar (o Excel/CSV já existe em Relatórios).', status: 'futuro' },
   // Futuro
   { icon: 'business-outline', title: 'Clientes e fornecedores', text: 'Cadastro com contato e histórico de pagamentos/recebimentos.', status: 'futuro' },
   { icon: 'cash-outline', title: 'Contas a receber', text: 'Controle de faturas de clientes e cobranças em atraso.', status: 'futuro' },

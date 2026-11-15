@@ -1,15 +1,20 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { MonthlyBars } from '@/components/MonthlyBars';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, EmptyState, Grid, Muted, ProgressBar, SectionHeader, StatCard } from '@/components/ui';
+import { Button, Card, EmptyState, Grid, Muted, ProgressBar, SectionHeader, StatCard } from '@/components/ui';
 import { useData } from '@/context/DataContext';
+import { billsCsv, transactionsCsv } from '@/domain/csv';
+import { shareTextFile } from '@/lib/exportFile';
 import { totals, transactionsOfMonth } from '@/lib/finance';
-import { currentMonthKey, formatMoney, monthLabel } from '@/lib/format';
+import { currentMonthKey, formatMoney, monthLabel, todayISO } from '@/lib/format';
+import { notify } from '@/lib/notify';
 import { colors, spacing } from '@/theme';
 
 export default function ReportsScreen() {
-  const { transactions, categories } = useData();
+  const { transactions, categories, bills } = useData();
+  const [exporting, setExporting] = useState<string | null>(null);
   const month = currentMonthKey();
   const ofMonth = transactionsOfMonth(transactions, month);
   const sums = totals(ofMonth);
@@ -22,6 +27,18 @@ export default function ReportsScreen() {
         return acc;
       }, {}),
   ).sort((a, b) => b.value - a.value);
+
+  async function exportCsv(id: string, fileName: string, content: () => string) {
+    setExporting(id);
+    try {
+      const err = await shareTextFile(fileName, content(), 'text/csv');
+      if (err) notify('Não foi possível exportar', err);
+    } catch {
+      notify('Não foi possível exportar', 'Tente de novo.');
+    } finally {
+      setExporting(null);
+    }
+  }
 
   const margin = sums.income > 0 ? Math.round((sums.balance / sums.income) * 100) : 0;
 
@@ -60,13 +77,30 @@ export default function ReportsScreen() {
         )}
       </Card>
 
-      <SectionHeader title="Exportar" />
-      <Card style={styles.export}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={styles.name}>PDF e Excel/CSV</Text>
-          <Muted>Envie relatórios para o contador.</Muted>
-        </View>
-        <Badge label="Em breve" tone="info" />
+      <SectionHeader title="Exportar para Excel (CSV)" />
+      <Card style={{ gap: spacing.md }}>
+        <Muted>Planilhas para enviar ao contador. Abrem no Excel e no Google Planilhas.</Muted>
+        <Button
+          variant="secondary"
+          icon="download-outline"
+          label={`Movimentações de ${monthLabel(month).toLowerCase()} (${ofMonth.length})`}
+          loading={exporting === 'month'}
+          onPress={() => exportCsv('month', `caixa-${month}.csv`, () => transactionsCsv(ofMonth))}
+        />
+        <Button
+          variant="secondary"
+          icon="download-outline"
+          label={`Todas as movimentações (${transactions.length})`}
+          loading={exporting === 'all'}
+          onPress={() => exportCsv('all', `caixa-completo-${todayISO()}.csv`, () => transactionsCsv(transactions))}
+        />
+        <Button
+          variant="secondary"
+          icon="download-outline"
+          label={`Contas a pagar (${bills.length})`}
+          loading={exporting === 'bills'}
+          onPress={() => exportCsv('bills', `contas-a-pagar-${todayISO()}.csv`, () => billsCsv(bills, todayISO()))}
+        />
       </Card>
     </Screen>
   );
@@ -76,5 +110,4 @@ const styles = StyleSheet.create({
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   name: { fontSize: 14, fontWeight: '600', color: colors.text },
   value: { fontSize: 14, fontWeight: '700', color: colors.text },
-  export: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });
