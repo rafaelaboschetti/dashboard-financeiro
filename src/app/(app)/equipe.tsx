@@ -4,44 +4,73 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Segmented, TextField } from '@/components/Fields';
 import { FormModal } from '@/components/FormModal';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, Muted, SectionHeader } from '@/components/ui';
+import { Badge, Card, IconButton, Muted, SectionHeader } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { confirmAction } from '@/lib/confirm';
+import { isoToBR } from '@/lib/format';
+import { notify } from '@/lib/notify';
 import { roleInfo } from '@/lib/roles';
 import { colors, spacing } from '@/theme';
-import { Role } from '@/types';
+import { Role, User } from '@/types';
+
+const roleOptions: { value: Role; label: string }[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'financeiro', label: 'Financeiro' },
+  { value: 'leitura', label: 'Leitura' },
+];
+const roleTone = (r: Role) => (r === 'admin' ? 'primary' : r === 'financeiro' ? 'info' : 'neutral');
 
 export default function TeamScreen() {
-  const { members, user, isAdmin, addMember } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const { members, invitations, user, isAdmin, inviteMember, cancelInvitation, setMemberRole, removeMember } = useAuth();
+
+  // convite
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('financeiro');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function openForm() {
-    setName('');
+  // edição de perfil de acesso
+  const [editing, setEditing] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState<Role>('financeiro');
+
+  function openInvite() {
     setEmail('');
-    setPassword('');
     setRole('financeiro');
     setErrors({});
-    setOpen(true);
+    setInviteOpen(true);
   }
 
-  async function submit() {
-    const e: Record<string, string> = {};
-    if (!name.trim()) e.name = 'Informe o nome.';
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = 'E-mail inválido.';
-    if (password.length < 6) e.password = 'Mínimo de 6 caracteres.';
-    setErrors(e);
-    if (Object.keys(e).length) return;
-    const err = await addMember({ name, email, password, role });
+  async function submitInvite() {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErrors({ email: 'E-mail inválido.' });
+    const err = await inviteMember({ email, role });
     if (err) return setErrors({ email: err });
-    setOpen(false);
+    setInviteOpen(false);
+    notify('Convite criado', `Peça para ${email.trim().toLowerCase()} criar uma conta no app marcando "Fui convidado por uma empresa", usando este mesmo e-mail.`);
+  }
+
+  async function submitRole() {
+    if (!editing) return;
+    const err = await setMemberRole(editing.id, editRole);
+    if (err) return notify('Não foi possível alterar', err);
+    setEditing(null);
+  }
+
+  function askRemove(m: User) {
+    confirmAction('Remover da equipe', `Remover ${m.name}? A pessoa perde o acesso aos dados da empresa.`, async () => {
+      const err = await removeMember(m.id);
+      if (err) notify('Não foi possível remover', err);
+    }, 'Remover');
+  }
+
+  function askCancel(id: string, inviteEmail: string) {
+    confirmAction('Cancelar convite', `Cancelar o convite para ${inviteEmail}?`, async () => {
+      const err = await cancelInvitation(id);
+      if (err) notify('Não foi possível cancelar', err);
+    }, 'Cancelar convite');
   }
 
   return (
-    <Screen title="Equipe" subtitle="Quem acessa as finanças da empresa" back fab={isAdmin ? { label: 'Adicionar usuário', onPress: openForm } : undefined}>
+    <Screen title="Equipe" subtitle="Quem acessa as finanças da empresa" back fab={isAdmin ? { label: 'Convidar pessoa', onPress: openInvite } : undefined}>
       <Card style={{ padding: 0 }}>
         {members.map((m, i) => (
           <View key={m.id} style={[styles.row, i > 0 && styles.border]}>
@@ -55,10 +84,39 @@ export default function TeamScreen() {
               </Text>
               <Muted>{m.email}</Muted>
             </View>
-            <Badge label={roleInfo[m.role].label} tone={m.role === 'admin' ? 'primary' : m.role === 'financeiro' ? 'info' : 'neutral'} />
+            <Badge label={roleInfo[m.role].label} tone={roleTone(m.role)} />
+            {isAdmin && (
+              <IconButton
+                icon="create-outline"
+                label={`Alterar perfil de ${m.name}`}
+                onPress={() => {
+                  setEditRole(m.role);
+                  setEditing(m);
+                }}
+              />
+            )}
+            {isAdmin && m.id !== user?.id && <IconButton icon="person-remove-outline" label={`Remover ${m.name}`} color={colors.expense} onPress={() => askRemove(m)} />}
           </View>
         ))}
       </Card>
+
+      {isAdmin && invitations.length > 0 && (
+        <>
+          <SectionHeader title={`Convites pendentes (${invitations.length})`} />
+          <Card style={{ padding: 0 }}>
+            {invitations.map((inv, i) => (
+              <View key={inv.id} style={[styles.row, i > 0 && styles.border]}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.name}>{inv.email}</Text>
+                  <Muted>Convidado em {isoToBR(inv.createdAt.slice(0, 10))}</Muted>
+                </View>
+                <Badge label={roleInfo[inv.role].label} tone={roleTone(inv.role)} />
+                <IconButton icon="close-circle-outline" label={`Cancelar convite de ${inv.email}`} onPress={() => askCancel(inv.id, inv.email)} />
+              </View>
+            ))}
+          </Card>
+        </>
+      )}
 
       <SectionHeader title="Perfis de acesso" />
       <Card style={{ gap: spacing.md }}>
@@ -69,23 +127,18 @@ export default function TeamScreen() {
           </View>
         ))}
       </Card>
-      {!isAdmin && <Muted style={{ marginTop: spacing.lg }}>Somente administradores podem adicionar usuários.</Muted>}
+      {!isAdmin && <Muted style={{ marginTop: spacing.lg }}>Somente administradores podem convidar e gerenciar a equipe.</Muted>}
 
-      <FormModal visible={open} title="Adicionar usuário" submitLabel="Adicionar" onClose={() => setOpen(false)} onSubmit={submit}>
-        <TextField label="Nome" value={name} onChangeText={setName} error={errors.name} placeholder="Nome completo" />
-        <TextField label="E-mail" value={email} onChangeText={setEmail} error={errors.email} autoCapitalize="none" keyboardType="email-address" placeholder="pessoa@empresa.com" />
-        <TextField label="Senha provisória" value={password} onChangeText={setPassword} error={errors.password} secureTextEntry hint="A pessoa poderá trocar depois." />
-        <Segmented
-          label="Perfil de acesso"
-          value={role}
-          onChange={setRole}
-          options={[
-            { value: 'admin', label: 'Admin' },
-            { value: 'financeiro', label: 'Financeiro' },
-            { value: 'leitura', label: 'Leitura' },
-          ]}
-        />
+      <FormModal visible={inviteOpen} title="Convidar pessoa" submitLabel="Criar convite" onClose={() => setInviteOpen(false)} onSubmit={submitInvite}>
+        <TextField label="E-mail da pessoa" value={email} onChangeText={setEmail} error={errors.email} autoCapitalize="none" keyboardType="email-address" placeholder="pessoa@empresa.com" hint="A pessoa cria a própria conta e senha no app com este e-mail e entra direto na empresa." />
+        <Segmented label="Perfil de acesso" value={role} onChange={setRole} options={roleOptions} />
         <Muted>{roleInfo[role].description}</Muted>
+      </FormModal>
+
+      <FormModal visible={!!editing} title="Perfil de acesso" submitLabel="Salvar" onClose={() => setEditing(null)} onSubmit={submitRole}>
+        <Muted style={{ marginBottom: spacing.lg }}>{editing?.name}</Muted>
+        <Segmented value={editRole} onChange={setEditRole} options={roleOptions} />
+        <Muted style={{ marginTop: spacing.md }}>{roleInfo[editRole].description}</Muted>
       </FormModal>
     </Screen>
   );

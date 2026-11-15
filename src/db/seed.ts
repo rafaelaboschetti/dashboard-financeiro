@@ -1,25 +1,13 @@
 import { addDays, addMonths, todayISO, uid } from '@/lib/format';
-import { categoryPalette } from '@/theme';
-import { Bill, Category, CompanyData, Recurrence } from '@/types';
-
-export function defaultCategories(): Category[] {
-  const out = ['Aluguel', 'Energia e água', 'Internet e telefone', 'Fornecedores', 'Folha de pagamento', 'Impostos', 'Marketing', 'Outros'];
-  const inn = ['Vendas', 'Serviços', 'Investimentos', 'Outras receitas'];
-  return [
-    ...out.map((name, i) => ({ id: uid(), name, type: 'out' as const, color: categoryPalette[i % categoryPalette.length] })),
-    ...inn.map((name, i) => ({ id: uid(), name, type: 'in' as const, color: categoryPalette[(i + 2) % categoryPalette.length] })),
-  ];
-}
-
-export function emptyCompanyData(): CompanyData {
-  return { bills: [], transactions: [], goals: [], reminders: [], categories: defaultCategories() };
-}
+import { supabase } from '@/lib/supabase';
+import { Bill, CompanyData, Recurrence } from '@/types';
+import * as api from './api';
 
 /** Dados de exemplo para o usuário avaliar o layout com o app "preenchido". */
-export function demoCompanyData(): CompanyData {
+function demoCompanyData(): CompanyData {
   const today = todayISO();
   const thisMonth = today.slice(0, 7);
-  const data = emptyCompanyData();
+  const data: CompanyData = { bills: [], transactions: [], goals: [], reminders: [], categories: [] };
 
   const bill = (description: string, amount: number, dayOffset: number, category: string, recurrence: Recurrence, supplier?: string, paid = false): Bill => ({
     id: uid(),
@@ -89,4 +77,34 @@ export function demoCompanyData(): CompanyData {
   ];
 
   return data;
+}
+
+/**
+ * Grava os dados de exemplo na empresa recém-criada (as categorias padrão já
+ * foram criadas pelo banco em complete_signup).
+ */
+export async function insertDemoData(companyId: string): Promise<void> {
+  const demo = demoCompanyData();
+  const { data: cats, error } = await supabase.from('categories').select('id, name, type').eq('company_id', companyId);
+  if (error) throw error;
+  const idOf = (name: string, type: 'in' | 'out') => cats?.find((c) => c.name === name && c.type === type)?.id ?? null;
+  const fail = (r: { error: unknown }) => {
+    if (r.error) throw r.error;
+  };
+
+  for (const b of demo.bills) {
+    const id = await api.insertBill(companyId, { ...b, categoryId: idOf(b.category, 'out') });
+    if (b.paid) await api.payBill(id, b.paidAt);
+  }
+  fail(
+    await supabase.from('transactions').insert(
+      demo.transactions.map((t) => ({ company_id: companyId, type: t.type, description: t.description, amount_cents: t.amount, date: t.date, category_id: idOf(t.category, t.type) })),
+    ),
+  );
+  fail(await supabase.from('goals').insert(demo.goals.map((g) => ({ company_id: companyId, title: g.title, target_cents: g.target, current_cents: g.current, deadline: g.deadline }))));
+  fail(
+    await supabase
+      .from('reminders')
+      .insert(demo.reminders.map((r) => ({ company_id: companyId, title: r.title, notes: r.notes ?? null, date: r.date, priority: r.priority, done: r.done }))),
+  );
 }

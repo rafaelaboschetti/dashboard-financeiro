@@ -45,7 +45,7 @@
           "backgroundColor": "#0F766E"
         }
       ],
-      "expo-secure-store"
+      "expo-sqlite"
     ],
     "scheme": "financasempresa",
     "experiments": {

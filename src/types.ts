@@ -12,8 +12,14 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  salt: string;
-  passwordHash: string;
+}
+
+/** Convite pendente: a pessoa cria a própria conta com este e-mail e entra na empresa. */
+export interface Invitation {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
 }
 
 export type Recurrence = 'none' | 'monthly' | 'yearly';

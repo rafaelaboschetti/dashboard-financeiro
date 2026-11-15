@@ -1,215 +1,230 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
-import { emptyCompanyData } from '@/db/seed';
+import * as api from '@/db/api';
+import { notify } from '@/lib/notify';
+import { friendlyError, supabase } from '@/lib/supabase';
 import { categoryPalette } from '@/theme';
-import { KEYS, read, write } from '@/db/storage';
-import { addMonths, todayISO, uid } from '@/lib/format';
 import { Bill, Category, CompanyData, Goal, Priority, Recurrence, Transaction } from '@/types';
 import { useAuth } from './AuthContext';
 
 type NewBill = { description: string; amount: number; dueDate: string; category: string; supplier?: string; recurrence: Recurrence; remindDaysBefore: number };
-type NewTransaction = Omit<Transaction, 'id'>;
+type NewTransaction = Omit<Transaction, 'id' | 'billId'>;
 type NewGoal = Omit<Goal, 'id'>;
 type NewReminder = { title: string; notes?: string; date: string; priority: Priority };
 type BillChanges = Partial<Pick<Bill, 'description' | 'amount' | 'dueDate' | 'category' | 'supplier' | 'recurrence' | 'remindDaysBefore'>>;
 type TransactionChanges = Partial<Pick<Transaction, 'type' | 'description' | 'amount' | 'date' | 'category'>>;
 
 interface DataContextValue extends CompanyData {
+  /** Dados da empresa já carregados do servidor. */
   ready: boolean;
-  addBill: (b: NewBill) => void;
-  /** Edita a conta. Se ela já foi paga, a saída correspondente no caixa é atualizada junto. */
-  updateBill: (id: string, changes: BillChanges) => void;
-  toggleBillPaid: (id: string) => void;
-  removeBill: (id: string) => void;
-  addTransaction: (t: NewTransaction) => void;
-  /** Edita a movimentação. Se ela veio do pagamento de uma conta, a conta é atualizada junto. */
-  updateTransaction: (id: string, changes: TransactionChanges) => void;
-  removeTransaction: (id: string) => void;
-  addGoal: (g: NewGoal) => void;
-  updateGoal: (id: string, changes: Partial<NewGoal>) => void;
-  contributeToGoal: (id: string, amount: number) => void;
-  removeGoal: (id: string) => void;
-  addReminder: (r: NewReminder) => void;
-  updateReminder: (id: string, changes: Partial<NewReminder>) => void;
-  toggleReminder: (id: string) => void;
-  removeReminder: (id: string) => void;
+  /** Erro ao carregar (ex.: sem internet). */
+  loadError: string | null;
+  reload: () => Promise<void>;
+  addBill: (b: NewBill) => Promise<void>;
+  /** Edita a conta. Se ela já foi paga, o banco atualiza a saída no caixa junto. */
+  updateBill: (id: string, changes: BillChanges) => Promise<void>;
+  toggleBillPaid: (id: string) => Promise<void>;
+  /** Exclui a conta (e, se paga, a saída correspondente no caixa). */
+  removeBill: (id: string) => Promise<void>;
+  addTransaction: (t: NewTransaction) => Promise<void>;
+  /** Edita a movimentação. Se ela veio do pagamento de uma conta, o banco atualiza a conta junto. */
+  updateTransaction: (id: string, changes: TransactionChanges) => Promise<void>;
+  /** Exclui a movimentação. Se era o pagamento de uma conta, a conta volta para "a pagar". */
+  removeTransaction: (id: string) => Promise<void>;
+  addGoal: (g: NewGoal) => Promise<void>;
+  updateGoal: (id: string, changes: Partial<NewGoal>) => Promise<void>;
+  contributeToGoal: (id: string, amount: number) => Promise<void>;
+  removeGoal: (id: string) => Promise<void>;
+  addReminder: (r: NewReminder) => Promise<void>;
+  updateReminder: (id: string, changes: Partial<NewReminder>) => Promise<void>;
+  toggleReminder: (id: string) => Promise<void>;
+  removeReminder: (id: string) => Promise<void>;
   /** Cria um rótulo/categoria. Se já existir um com o mesmo nome e tipo, não duplica. */
-  addCategory: (c: { name: string; type: Category['type']; color?: string }) => void;
-  /** Renomeia/recolore um rótulo. Contas e movimentações que usam o nome antigo passam a usar o novo. */
-  updateCategory: (id: string, changes: { name?: string; color?: string }) => string | null;
-  removeCategory: (id: string) => void;
+  addCategory: (c: { name: string; type: Category['type']; color?: string }) => Promise<void>;
+  /** Renomeia/recolore um rótulo (os lançamentos acompanham, pois apontam para o id). Retorna o erro, se houver. */
+  updateCategory: (id: string, changes: { name?: string; color?: string }) => Promise<string | null>;
+  /** Exclui o rótulo; lançamentos que o usavam ficam "Sem categoria". */
+  removeCategory: (id: string) => Promise<void>;
 }
+
+const empty: CompanyData = { bills: [], transactions: [], goals: [], reminders: [], categories: [] };
+const TABLES = ['categories', 'bills', 'transactions', 'goals', 'reminders'] as const;
 
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { company, canEdit } = useAuth();
   const companyId = company?.id ?? null;
-  const [data, setData] = useState<CompanyData>(emptyCompanyData);
-  // Os dados só valem para a empresa cujo id foi carregado (evita gravar dados de uma empresa na outra).
+  const [data, setData] = useState<CompanyData>(empty);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const ready = !!companyId && loadedFor === companyId;
+  const loadSeq = useRef(0);
 
+  const reload = useCallback(async () => {
+    if (!companyId) return;
+    const seq = ++loadSeq.current;
+    try {
+      const fresh = await api.loadCompanyData();
+      if (seq !== loadSeq.current) return; // chegou uma resposta mais nova antes
+      setData(fresh);
+      setLoadedFor(companyId);
+      setLoadError(null);
+    } catch (e) {
+      if (seq === loadSeq.current) setLoadError(friendlyError(e));
+    }
+  }, [companyId]);
+
+  // Carrega ao entrar / trocar de empresa. (Ao sair, a área logada é desmontada e este estado some junto.)
   useEffect(() => {
     if (!companyId) return;
     let cancelled = false;
-    read<CompanyData>(KEYS.data(companyId), emptyCompanyData()).then((stored) => {
-      if (cancelled) return;
-      setData(stored);
-      setLoadedFor(companyId);
-    });
+    const seq = ++loadSeq.current;
+    api
+      .loadCompanyData()
+      .then((fresh) => {
+        if (cancelled || seq !== loadSeq.current) return;
+        setData(fresh);
+        setLoadedFor(companyId);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        if (!cancelled) setLoadError(friendlyError(e));
+      });
     return () => {
       cancelled = true;
     };
   }, [companyId]);
 
-  // Persiste a cada alteração (só depois de carregar os dados da empresa atual).
+  // Tempo real: quando outra pessoa da empresa altera algo, recarrega (agrupando alterações próximas).
   useEffect(() => {
-    if (companyId && ready) write(KEYS.data(companyId), data);
-  }, [data, companyId, ready]);
+    if (!companyId) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(reload, 400);
+    };
+    const channel = supabase.channel(`empresa-${companyId}`);
+    for (const table of TABLES) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `company_id=eq.${companyId}` }, schedule);
+    }
+    channel.subscribe();
+    // Ao voltar para o app, garante que está atualizado.
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') schedule();
+    });
+    return () => {
+      clearTimeout(timer);
+      sub.remove();
+      supabase.removeChannel(channel);
+    };
+  }, [companyId, reload]);
 
-  // Toda alteração passa por `patch`, que confere o perfil: o perfil Leitura não altera nada,
-  // mesmo que alguma tela esqueça de esconder um botão.
-  const patch = useCallback(
-    (fn: (d: CompanyData) => CompanyData) => {
-      if (!canEdit) return;
-      setData(fn);
+  /** Executa uma gravação: confere o perfil, mostra o erro (se houver) e recarrega os dados. */
+  const run = useCallback(
+    async (action: (companyId: string) => Promise<unknown>) => {
+      if (!companyId || !canEdit) return;
+      try {
+        await action(companyId);
+      } catch (e) {
+        notify('Não foi possível salvar', friendlyError(e));
+      }
+      await reload();
     },
-    [canEdit],
+    [companyId, canEdit, reload],
   );
 
-  const addBill = useCallback((b: NewBill) => patch((d) => ({ ...d, bills: [...d.bills, { ...b, id: uid(), paid: false }] })), [patch]);
+  const catId = useCallback((name: string, type: Category['type']) => api.categoryIdFor(data.categories, name, type), [data.categories]);
 
-  const toggleBillPaid = useCallback(
-    (id: string) =>
-      patch((d) => {
-        const bill = d.bills.find((x) => x.id === id);
-        if (!bill) return d;
-
-        if (bill.paid) {
-          // Desfaz o pagamento: remove a saída de caixa e a próxima conta recorrente (se ainda pendente).
-          return {
-            ...d,
-            transactions: d.transactions.filter((t) => t.id !== bill.transactionId),
-            bills: d.bills
-              .filter((b) => !(b.id === bill.nextBillId && !b.paid))
-              .map((b) => (b.id === id ? { ...b, paid: false, paidAt: undefined, transactionId: undefined, nextBillId: undefined } : b)),
-          };
-        }
-
-        const tx: Transaction = { id: uid(), type: 'out', description: bill.description, amount: bill.amount, date: todayISO(), category: bill.category, billId: bill.id };
-        let next: Bill | undefined;
-        if (bill.recurrence !== 'none') {
-          next = { ...bill, id: uid(), dueDate: addMonths(bill.dueDate, bill.recurrence === 'monthly' ? 1 : 12), paid: false, paidAt: undefined, transactionId: undefined, nextBillId: undefined };
-        }
-        return {
-          ...d,
-          transactions: [...d.transactions, tx],
-          bills: [...d.bills.map((b) => (b.id === id ? { ...b, paid: true, paidAt: todayISO(), transactionId: tx.id, nextBillId: next?.id } : b)), ...(next ? [next] : [])],
-        };
-      }),
-    [patch],
-  );
-
+  const addBill = useCallback((b: NewBill) => run((cid) => api.insertBill(cid, { ...b, categoryId: catId(b.category, 'out') })), [run, catId]);
   const updateBill = useCallback(
-    (id: string, changes: BillChanges) =>
-      patch((d) => {
-        const bill = d.bills.find((b) => b.id === id);
-        if (!bill) return d;
-        const updated: Bill = { ...bill, ...changes };
-        return {
-          ...d,
-          bills: d.bills.map((b) => (b.id === id ? updated : b)),
-          transactions: d.transactions.map((t) =>
-            t.id === bill.transactionId ? { ...t, description: updated.description, amount: updated.amount, category: updated.category } : t,
-          ),
-        };
-      }),
-    [patch],
+    (id: string, c: BillChanges) => run(() => api.updateBill(id, { ...c, ...(c.category !== undefined && { categoryId: catId(c.category, 'out') }) })),
+    [run, catId],
   );
+  const toggleBillPaid = useCallback(
+    (id: string) => {
+      const bill = data.bills.find((b) => b.id === id);
+      if (!bill) return Promise.resolve();
+      return run(() => (bill.paid ? api.unpayBill(id) : api.payBill(id)));
+    },
+    [run, data.bills],
+  );
+  const removeBill = useCallback((id: string) => run(() => api.deleteBill(id)), [run]);
 
-  const removeBill = useCallback((id: string) => patch((d) => ({ ...d, bills: d.bills.filter((b) => b.id !== id) })), [patch]);
-
-  const addTransaction = useCallback((t: NewTransaction) => patch((d) => ({ ...d, transactions: [...d.transactions, { ...t, id: uid() }] })), [patch]);
+  const addTransaction = useCallback(
+    (t: NewTransaction) => run((cid) => api.insertTransaction(cid, { type: t.type, description: t.description, amount: t.amount, date: t.date, categoryId: catId(t.category, t.type) })),
+    [run, catId],
+  );
   const updateTransaction = useCallback(
-    (id: string, changes: TransactionChanges) =>
-      patch((d) => {
-        const tx = d.transactions.find((t) => t.id === id);
-        if (!tx) return d;
-        // Pagamento de conta é sempre uma saída.
-        const updated: Transaction = { ...tx, ...changes, type: tx.billId ? 'out' : (changes.type ?? tx.type) };
-        return {
-          ...d,
-          transactions: d.transactions.map((t) => (t.id === id ? updated : t)),
-          bills: d.bills.map((b) =>
-            b.id === tx.billId ? { ...b, description: updated.description, amount: updated.amount, category: updated.category, paidAt: updated.date } : b,
-          ),
-        };
-      }),
-    [patch],
+    (id: string, c: TransactionChanges) => {
+      const tx = data.transactions.find((t) => t.id === id);
+      const type = tx?.billId ? 'out' : (c.type ?? tx?.type ?? 'out'); // pagamento de conta é sempre saída
+      return run(() => api.updateTransaction(id, { ...c, type, ...(c.category !== undefined && { categoryId: catId(c.category, type) }) }));
+    },
+    [run, catId, data.transactions],
   );
-  const removeTransaction = useCallback((id: string) => patch((d) => ({ ...d, transactions: d.transactions.filter((t) => t.id !== id) })), [patch]);
+  const removeTransaction = useCallback((id: string) => run(() => api.deleteTransaction(id)), [run]);
 
-  const addGoal = useCallback((g: NewGoal) => patch((d) => ({ ...d, goals: [...d.goals, { ...g, id: uid() }] })), [patch]);
+  const addGoal = useCallback((g: NewGoal) => run((cid) => api.insertGoal(cid, g)), [run]);
+  const updateGoal = useCallback((id: string, c: Partial<NewGoal>) => run(() => api.updateGoal(id, c)), [run]);
   const contributeToGoal = useCallback(
-    (id: string, amount: number) => patch((d) => ({ ...d, goals: d.goals.map((g) => (g.id === id ? { ...g, current: Math.max(0, g.current + amount) } : g)) })),
-    [patch],
+    (id: string, amount: number) => {
+      const goal = data.goals.find((g) => g.id === id);
+      if (!goal) return Promise.resolve();
+      return run(() => api.updateGoal(id, { current: goal.current + amount }));
+    },
+    [run, data.goals],
   );
-  const updateGoal = useCallback(
-    (id: string, changes: Partial<NewGoal>) => patch((d) => ({ ...d, goals: d.goals.map((g) => (g.id === id ? { ...g, ...changes } : g)) })),
-    [patch],
-  );
-  const removeGoal = useCallback((id: string) => patch((d) => ({ ...d, goals: d.goals.filter((g) => g.id !== id) })), [patch]);
+  const removeGoal = useCallback((id: string) => run(() => api.deleteGoal(id)), [run]);
 
-  const addReminder = useCallback((r: NewReminder) => patch((d) => ({ ...d, reminders: [...d.reminders, { ...r, id: uid(), done: false }] })), [patch]);
-  const updateReminder = useCallback(
-    (id: string, changes: Partial<NewReminder>) => patch((d) => ({ ...d, reminders: d.reminders.map((r) => (r.id === id ? { ...r, ...changes } : r)) })),
-    [patch],
-  );
+  const addReminder = useCallback((r: NewReminder) => run((cid) => api.insertReminder(cid, r)), [run]);
+  const updateReminder = useCallback((id: string, c: Partial<NewReminder>) => run(() => api.updateReminder(id, c)), [run]);
   const toggleReminder = useCallback(
-    (id: string) => patch((d) => ({ ...d, reminders: d.reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r)) })),
-    [patch],
+    (id: string) => {
+      const r = data.reminders.find((x) => x.id === id);
+      if (!r) return Promise.resolve();
+      return run(() => api.updateReminder(id, { done: !r.done }));
+    },
+    [run, data.reminders],
   );
-  const removeReminder = useCallback((id: string) => patch((d) => ({ ...d, reminders: d.reminders.filter((r) => r.id !== id) })), [patch]);
+  const removeReminder = useCallback((id: string) => run(() => api.deleteReminder(id)), [run]);
 
   const addCategory = useCallback(
-    (c: { name: string; type: Category['type']; color?: string }) =>
-      patch((d) => {
-        const name = c.name.trim();
-        if (!name || d.categories.some((x) => x.type === c.type && x.name.toLowerCase() === name.toLowerCase())) return d;
-        const color = c.color ?? categoryPalette[d.categories.length % categoryPalette.length];
-        return { ...d, categories: [...d.categories, { id: uid(), name, type: c.type, color }] };
-      }),
-    [patch],
+    (c: { name: string; type: Category['type']; color?: string }) => {
+      const name = c.name.trim();
+      if (!name || data.categories.some((x) => x.type === c.type && x.name.toLowerCase() === name.toLowerCase())) return Promise.resolve();
+      const color = c.color ?? categoryPalette[data.categories.length % categoryPalette.length];
+      return run((cid) => api.insertCategory(cid, { name, type: c.type, color }));
+    },
+    [run, data.categories],
   );
   const updateCategory = useCallback(
-    (id: string, changes: { name?: string; color?: string }): string | null => {
+    async (id: string, changes: { name?: string; color?: string }): Promise<string | null> => {
       if (!canEdit) return 'Seu perfil não permite editar.';
       const cat = data.categories.find((c) => c.id === id);
       if (!cat) return 'Rótulo não encontrado.';
       const name = changes.name?.trim() ?? cat.name;
       if (!name) return 'Digite o nome do rótulo.';
       if (data.categories.some((c) => c.id !== id && c.type === cat.type && c.name.toLowerCase() === name.toLowerCase())) return 'Esse rótulo já existe.';
-      patch((d) => {
-        const rename = <T extends { category: string }>(item: T, type: Category['type']): T =>
-          item.category === cat.name && type === cat.type ? { ...item, category: name } : item;
-        return {
-          ...d,
-          categories: d.categories.map((c) => (c.id === id ? { ...c, name, color: changes.color ?? c.color } : c)),
-          bills: d.bills.map((b) => rename(b, 'out')),
-          transactions: d.transactions.map((t) => rename(t, t.type)),
-        };
-      });
+      try {
+        await api.updateCategory(id, { name, color: changes.color ?? cat.color });
+      } catch (e) {
+        return friendlyError(e);
+      }
+      await reload();
       return null;
     },
-    [canEdit, data.categories, patch],
+    [canEdit, data.categories, reload],
   );
-  const removeCategory = useCallback((id: string) => patch((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) })), [patch]);
+  const removeCategory = useCallback((id: string) => run(() => api.deleteCategory(id)), [run]);
 
   const value = useMemo<DataContextValue>(
     () => ({
       ...data,
       ready,
+      loadError,
+      reload,
       addBill,
       updateBill,
       toggleBillPaid,
@@ -229,7 +244,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       updateCategory,
       removeCategory,
     }),
-    [data, ready, addBill, updateBill, toggleBillPaid, removeBill, addTransaction, updateTransaction, removeTransaction, addGoal, updateGoal, contributeToGoal, removeGoal, addReminder, updateReminder, toggleReminder, removeReminder, addCategory, updateCategory, removeCategory],
+    [data, ready, loadError, reload, addBill, updateBill, toggleBillPaid, removeBill, addTransaction, updateTransaction, removeTransaction, addGoal, updateGoal, contributeToGoal, removeGoal, addReminder, updateReminder, toggleReminder, removeReminder, addCategory, updateCategory, removeCategory],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

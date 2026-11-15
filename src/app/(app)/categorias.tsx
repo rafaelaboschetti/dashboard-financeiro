@@ -80,9 +80,9 @@ export default function CategoriesScreen() {
     setEditError('');
   }
 
-  function submitEdit() {
+  async function submitEdit() {
     if (!editing) return;
-    const err = updateCategory(editing.id, { name: editName, color: editColor });
+    const err = await updateCategory(editing.id, { name: editName, color: editColor });
     if (err) return setEditError(err);
     setEditing(null);
   }
@@ -100,7 +100,7 @@ export default function CategoriesScreen() {
               <View style={[styles.dot, { backgroundColor: c.color }]} />
               <Text style={styles.name}>{c.name}</Text>
               {canEdit && <IconButton icon="create-outline" label={`Editar ${c.name}`} onPress={() => openEdit(c)} />}
-              {canEdit && <IconButton icon="trash-outline" label={`Excluir ${c.name}`} onPress={() => confirmAction('Excluir rótulo', `Excluir "${c.name}"? Lançamentos antigos continuam com este nome.`, () => removeCategory(c.id))} />}
+              {canEdit && <IconButton icon="trash-outline" label={`Excluir ${c.name}`} onPress={() => confirmAction('Excluir rótulo', `Excluir "${c.name}"? Os lançamentos que usam este rótulo ficarão "Sem categoria".`, () => removeCategory(c.id))} />}
             </View>
           ))}
         </Card>

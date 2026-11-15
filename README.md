@@ -13,15 +13,23 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 - **Lembretes** gerais da empresa.
 - **Relatórios**: resultado do mês, margem e despesas por categoria.
 - **Categorias** personalizáveis, com cor.
-- **Equipe e permissões**: perfis Administrador, Financeiro e Leitura.
+- **Equipe e permissões**: perfis Administrador, Financeiro e Leitura; convite por e-mail, mudança de perfil e remoção de membros.
+- **Conta**: "esqueci minha senha" (link por e-mail), troca de senha e de nome.
+- **Dados na nuvem (Supabase)**: a equipe vê os mesmos dados em todos os aparelhos, com atualização em tempo real.
 - **Edição de registros**: contas, movimentações, metas, lembretes e categorias. Editar uma conta paga atualiza a saída no caixa (e vice-versa); renomear uma categoria atualiza os lançamentos.
 - **Layout responsivo**: abas embaixo no celular, menu lateral em tablet/computador.
 
-> Os dados ficam salvos **no próprio aparelho** (AsyncStorage). Cada celular tem os seus dados; ainda não há sincronização na nuvem. Veja o [PLANO.md](PLANO.md) para os próximos passos.
+## Configurar o backend (Supabase)
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. **SQL Editor**: rode, nesta ordem, os arquivos de `supabase/migrations/` (`..._schema_inicial.sql` e depois `..._tempo_real.sql`).
+3. **Authentication → Sign In / Providers → Email**: desligue *Confirm email* se quiser que as contas funcionem na hora (opcional).
+4. **Authentication → URL Configuration**: em *Site URL* e *Redirect URLs*, coloque o endereço da versão web (ex.: `https://dashboard-financeiro.expo.app`), usado no link de "esqueci minha senha".
+5. Copie `.env.example` para `.env` e preencha `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (**Project Settings → API Keys**). Esses dois valores são públicos; **nunca** coloque a *secret key* no app.
 
 ## Como rodar
 
-Pré-requisito: [Node.js](https://nodejs.org/) instalado.
+Pré-requisito: [Node.js](https://nodejs.org/) instalado e o `.env` configurado (acima).
 
 ```bash
 npm install
@@ -65,16 +73,12 @@ Dicas, caso o build falhe:
 
 ## Segurança
 
-O app ainda não tem servidor: login, permissões e dados ficam no aparelho. Proteções atuais:
-
-- **Dados criptografados** com AES-256-GCM. No Android/iOS a chave fica no Keystore/Keychain (`expo-secure-store`); valores adulterados ou forjados são rejeitados.
-- **Senhas** com PBKDF2-SHA256 (100 mil iterações). Contas antigas são atualizadas no primeiro login.
-- **Bloqueio** após 5 tentativas de login erradas (30 s, dobrando até 15 min).
-- **Sessão** expira após 7 dias sem uso.
-- **Perfis** conferidos também nas funções de gravação, não só escondendo botões.
+- **Login e senhas** pelo Supabase Auth (hash de senha, limite de tentativas e sessão com renovação automática são feitos no servidor).
+- **Regras de acesso (RLS) no banco**: cada empresa só vê os próprios dados; *Leitura* só lê; só o *Administrador* gerencia equipe e convites; usuários não logados não acessam nada. Como é conferido no servidor, alterar o app ou o navegador não contorna as regras.
+- **Consistência no banco**: pagar/desfazer conta é feito por funções no servidor; excluir uma conta paga exclui a saída junto; editar uma atualiza a outra; a empresa nunca fica sem administrador.
 - **Android**: backup desligado e permissões desnecessárias bloqueadas (sobrepor outros apps, armazenamento externo etc.).
 
-Limitações conhecidas: na **versão web** a chave fica no próprio navegador, então quem tem acesso ao navegador consegue ler os dados. E, como tudo roda no aparelho, as regras podem ser contornadas por quem tem acesso total a ele (root). A correção definitiva é o backend (etapa 2 do [PLANO.md](PLANO.md)).
+O app precisa de internet para funcionar.
 
 ## Estrutura
 
@@ -83,7 +87,9 @@ src/
   app/          rotas (Expo Router): (auth)/ login e cadastro, (app)/ telas do app
   components/   componentes de interface reutilizáveis
   context/      AuthContext (usuários e sessão) e DataContext (dados da empresa)
-  db/           persistência local, usuários e dados de exemplo
+  db/           acesso ao banco (api.ts) e dados de exemplo
+supabase/
+  migrations/   esquema do banco, regras de acesso (RLS) e funções
   lib/          formatação, regras financeiras e hooks
   theme/        cores, espaçamentos e breakpoints
 assets/         ícones e imagem da tela de abertura

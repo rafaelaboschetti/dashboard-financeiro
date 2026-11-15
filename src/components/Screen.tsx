@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ReactNode, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useData } from '@/context/DataContext';
 import { useLayout } from '@/lib/useLayout';
 import { colors, contentMaxWidth, radius, shadow, spacing } from '@/theme';
 
@@ -21,6 +22,14 @@ interface ScreenProps {
 export function Screen({ title, subtitle, back, right, fab, children }: ScreenProps) {
   const { isTablet, isWide } = useLayout();
   const pad = isTablet ? spacing.xl : spacing.lg;
+  const { ready, loadError, reload } = useData();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refresh() {
+    setRefreshing(true);
+    await reload();
+    setRefreshing(false);
+  }
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -51,8 +60,27 @@ export function Screen({ title, subtitle, back, right, fab, children }: ScreenPr
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: pad, paddingTop: spacing.sm, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        <View style={{ width: '100%', maxWidth: contentMaxWidth, alignSelf: 'center' }}>{children}</View>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: pad, paddingTop: spacing.sm, paddingBottom: 120 }}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />}>
+        <View style={{ width: '100%', maxWidth: contentMaxWidth, alignSelf: 'center' }}>
+          {loadError ? (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Ionicons name="cloud-offline-outline" size={20} color={colors.expense} />
+              <Text style={styles.errorText}>{loadError}</Text>
+              <Pressable onPress={refresh} accessibilityRole="button" hitSlop={8}>
+                <Text style={styles.retry}>Tentar de novo</Text>
+              </Pressable>
+            </View>
+          ) : !ready ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={styles.loadingText}>Carregando dados da empresa…</Text>
+            </View>
+          ) : null}
+          {children}
+        </View>
       </ScrollView>
 
       {fab && !isWide && (
@@ -66,6 +94,11 @@ export function Screen({ title, subtitle, back, right, fab, children }: ScreenPr
 }
 
 const styles = StyleSheet.create({
+  errorBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.expenseSoft, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg },
+  errorText: { flex: 1, color: colors.expense, fontWeight: '600' },
+  retry: { color: colors.primary, fontWeight: '700' },
+  loading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
+  loadingText: { color: colors.textMuted },
   root: { flex: 1, backgroundColor: colors.bg },
   headerWrap: { paddingTop: spacing.md, paddingBottom: spacing.sm },
   header: { width: '100%', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

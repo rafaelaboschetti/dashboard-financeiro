@@ -28,10 +28,10 @@ const items: { icon: IconName; title: string; text: string; status: Status }[] =
   { icon: 'pricetags-outline', title: 'Categorias personalizadas', text: 'Classifique cada entrada e saída.', status: 'feito' },
   { icon: 'phone-portrait-outline', title: 'Layout responsivo', text: 'Celular (abas), tablet e desktop (menu lateral).', status: 'feito' },
   { icon: 'create-outline', title: 'Editar registros', text: 'Editar contas, movimentações, metas, lembretes e categorias (contas pagas e o caixa ficam sincronizados).', status: 'feito' },
+  { icon: 'cloud-outline', title: 'Banco de dados na nuvem (Supabase)', text: 'A equipe compartilha os mesmos dados em todos os aparelhos, com atualização em tempo real. Regras de acesso conferidas no servidor.', status: 'feito' },
+  { icon: 'lock-closed-outline', title: 'Convites, recuperar e trocar senha', text: 'Convite por e-mail, mudança de perfil, remoção de membros, "esqueci minha senha" e troca de senha.', status: 'feito' },
   // Próximas etapas
-  { icon: 'cloud-outline', title: 'Banco de dados na nuvem', text: 'Hoje os dados ficam só no aparelho. Com Supabase/Firebase, a equipe compartilha os mesmos dados em vários aparelhos.', status: 'proximo' },
   { icon: 'alarm-outline', title: 'Notificações push', text: 'Avisar contas a vencer e lembretes no horário certo (o campo "avisar antes" já é salvo).', status: 'proximo' },
-  { icon: 'lock-closed-outline', title: 'Recuperar senha e trocar senha', text: 'Fluxo por e-mail (depende do backend).', status: 'proximo' },
   { icon: 'camera-outline', title: 'Anexar boleto ou comprovante', text: 'Foto/PDF ligado à conta paga.', status: 'proximo' },
   { icon: 'document-text-outline', title: 'Exportar PDF / Excel', text: 'Relatórios para enviar ao contador.', status: 'proximo' },
   // Futuro
