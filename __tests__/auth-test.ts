@@ -84,6 +84,28 @@ describe('login', () => {
   });
 });
 
+describe('conta e equipe', () => {
+  it('troca a senha só com a senha atual correta', async () => {
+    const id = (await auth.getUsers()).find((x) => x.email === 'bia@x.com')!.id;
+    expect(await auth.changePassword(id, 'errada', 'novaSenha1')).toBe('A senha atual está incorreta.');
+    expect(await auth.changePassword(id, 'segredo123', 'novaSenha1')).toBeNull();
+    const login = async (pw: string) => {
+      mockStore.delete('fin:login-attempts'); // isola do bloqueio testado acima
+      return auth.verifyLogin('bia@x.com', pw);
+    };
+    expect((await login('novaSenha1')).user?.id).toBe(id);
+    expect((await login('segredo123')).error).toBe('E-mail ou senha incorretos.');
+  });
+
+  it('altera nome/perfil e remove usuário (que deixa de conseguir entrar)', async () => {
+    const membro = await auth.createUser({ companyId: 'c1', name: 'Caio', email: 'caio@x.com', password: 'senha123', role: 'leitura' });
+    expect((await auth.updateUser(membro.id, { role: 'financeiro', name: ' Caio S. ' })).name).toBe('Caio S.');
+    expect((await auth.getUsers()).find((x) => x.id === membro.id)?.role).toBe('financeiro');
+    await auth.deleteUser(membro.id);
+    expect((await auth.verifyLogin('caio@x.com', 'senha123')).user).toBeUndefined();
+  });
+});
+
 describe('sessão e adulteração', () => {
   let saved = '';
   beforeAll(async () => {

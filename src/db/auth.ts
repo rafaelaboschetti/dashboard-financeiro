@@ -136,6 +136,33 @@ export async function createUser(input: { companyId: string; name: string; email
   return user;
 }
 
+/** Altera nome e/ou perfil de acesso de um usuário (as regras de quem pode ficam em src/domain/team.ts). */
+export async function updateUser(id: string, changes: { name?: string; role?: Role }): Promise<User> {
+  const users = await getUsers();
+  const current = users.find((u) => u.id === id);
+  if (!current) throw new Error('Usuário não encontrado.');
+  const updated: User = { ...current, ...(changes.name !== undefined && { name: changes.name.trim() }), ...(changes.role && { role: changes.role }) };
+  await write(KEYS.users, users.map((u) => (u.id === id ? updated : u)));
+  return updated;
+}
+
+/** Remove o usuário. Se ele estiver logado neste aparelho, a sessão deixa de valer (usuário inexistente). */
+export async function deleteUser(id: string): Promise<void> {
+  await write(KEYS.users, (await getUsers()).filter((u) => u.id !== id));
+}
+
+/** Troca a senha, conferindo a senha atual. */
+export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<string | null> {
+  const users = await getUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user) return 'Usuário não encontrado.';
+  if (!(await checkPassword(user, currentPassword)).ok) return 'A senha atual está incorreta.';
+  const salt = Crypto.randomUUID();
+  const updated: User = { ...user, salt, passwordHash: await pbkdf2Hash(newPassword, salt, PBKDF2_ITERATIONS) };
+  await write(KEYS.users, (await getUsers()).map((u) => (u.id === userId ? updated : u)));
+  return null;
+}
+
 /** Cria uma empresa nova + o primeiro usuário (administrador). */
 export async function registerCompany(input: { companyName: string; name: string; email: string; password: string; withDemo: boolean }): Promise<User> {
   const company: Company = { id: uid(), name: input.companyName.trim(), createdAt: new Date().toISOString() };

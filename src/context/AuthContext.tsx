@@ -1,6 +1,9 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import * as authDb from '@/db/auth';
 import { createUser, getCompanies, getSessionUserId, getUsers, registerCompany, setSessionUserId, verifyLogin } from '@/db/auth';
+import { checkRemoval, checkRoleChange } from '@/domain/team';
+import { passwordError } from '@/lib/validation';
 import { Company, Role, User } from '@/types';
 
 interface AuthContextValue {
@@ -15,6 +18,13 @@ interface AuthContextValue {
   register: (input: { companyName: string; name: string; email: string; password: string; withDemo: boolean }) => Promise<string | null>;
   logout: () => Promise<void>;
   addMember: (input: { name: string; email: string; password: string; role: Role }) => Promise<string | null>;
+  /** Só administradores; a empresa nunca fica sem administrador. Retorna o erro, ou null. */
+  setMemberRole: (userId: string, role: Role) => Promise<string | null>;
+  /** Só administradores; não remove a si mesmo nem o último administrador. Retorna o erro, ou null. */
+  removeMember: (userId: string) => Promise<string | null>;
+  updateMyName: (name: string) => Promise<string | null>;
+  /** Troca a própria senha (confere a senha atual). Retorna o erro, ou null. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -93,6 +103,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user, hydrate],
   );
 
+  const setMemberRole = useCallback(
+    async (userId: string, role: Role) => {
+      if (!user) return 'Sessão expirada.';
+      const err = checkRoleChange(members, user, userId, role);
+      if (err) return err;
+      const updated = await authDb.updateUser(userId, { role });
+      await hydrate(updated.id === user.id ? updated : user);
+      return null;
+    },
+    [user, members, hydrate],
+  );
+
+  const removeMember = useCallback(
+    async (userId: string) => {
+      if (!user) return 'Sessão expirada.';
+      const err = checkRemoval(members, user, userId);
+      if (err) return err;
+      await authDb.deleteUser(userId);
+      await hydrate(user);
+      return null;
+    },
+    [user, members, hydrate],
+  );
+
+  const updateMyName = useCallback(
+    async (name: string) => {
+      if (!user) return 'Sessão expirada.';
+      if (!name.trim()) return 'Informe seu nome.';
+      await hydrate(await authDb.updateUser(user.id, { name }));
+      return null;
+    },
+    [user, hydrate],
+  );
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!user) return 'Sessão expirada.';
+      const err = passwordError(newPassword);
+      if (err) return err;
+      return authDb.changePassword(user.id, currentPassword, newPassword);
+    },
+    [user],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       loading,
@@ -105,8 +159,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       logout,
       addMember,
+      setMemberRole,
+      removeMember,
+      updateMyName,
+      changePassword,
     }),
-    [loading, user, company, members, login, register, logout, addMember],
+    [loading, user, company, members, login, register, logout, addMember, setMemberRole, removeMember, updateMyName, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

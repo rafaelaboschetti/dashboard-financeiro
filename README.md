@@ -13,7 +13,8 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 - **Lembretes** gerais da empresa.
 - **Relatórios**: resultado do mês, margem e despesas por categoria.
 - **Categorias** personalizáveis, com cor.
-- **Equipe e permissões**: perfis Administrador, Financeiro e Leitura.
+- **Equipe e permissões**: perfis Administrador, Financeiro e Leitura; o administrador muda o perfil e remove membros (a empresa nunca fica sem administrador).
+- **Minha conta**: trocar senha (conferindo a atual) e nome.
 - **Edição de registros**: contas, movimentações, metas, lembretes e categorias. Editar uma conta paga atualiza a saída no caixa (e vice-versa); renomear uma categoria atualiza os lançamentos.
 - **Layout responsivo**: abas embaixo no celular, menu lateral em tablet/computador.
 

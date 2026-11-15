@@ -4,15 +4,25 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Segmented, TextField } from '@/components/Fields';
 import { FormModal } from '@/components/FormModal';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, Muted, SectionHeader } from '@/components/ui';
+import { Badge, Card, IconButton, Muted, SectionHeader } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
+import { confirmAction } from '@/lib/confirm';
+import { notify } from '@/lib/notify';
 import { roleInfo } from '@/lib/roles';
 import { isValidEmail, passwordError } from '@/lib/validation';
 import { colors, spacing } from '@/theme';
-import { Role } from '@/types';
+import { Role, User } from '@/types';
+
+const roleOptions: { value: Role; label: string }[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'financeiro', label: 'Financeiro' },
+  { value: 'leitura', label: 'Leitura' },
+];
 
 export default function TeamScreen() {
-  const { members, user, isAdmin, addMember } = useAuth();
+  const { members, user, isAdmin, addMember, setMemberRole, removeMember } = useAuth();
+  const [editing, setEditing] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState<Role>('financeiro');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -42,6 +52,25 @@ export default function TeamScreen() {
     setOpen(false);
   }
 
+  async function submitRole() {
+    if (!editing) return;
+    const err = await setMemberRole(editing.id, editRole);
+    if (err) return notify('Não foi possível alterar', err);
+    setEditing(null);
+  }
+
+  function askRemove(m: User) {
+    confirmAction(
+      'Remover da equipe',
+      `Remover ${m.name}? A pessoa não conseguirá mais entrar no app.`,
+      async () => {
+        const err = await removeMember(m.id);
+        if (err) notify('Não foi possível remover', err);
+      },
+      'Remover',
+    );
+  }
+
   return (
     <Screen title="Equipe" subtitle="Quem acessa as finanças da empresa" back fab={isAdmin ? { label: 'Adicionar usuário', onPress: openForm } : undefined}>
       <Card style={{ padding: 0 }}>
@@ -58,6 +87,17 @@ export default function TeamScreen() {
               <Muted>{m.email}</Muted>
             </View>
             <Badge label={roleInfo[m.role].label} tone={roleInfo[m.role].tone} />
+            {isAdmin && (
+              <IconButton
+                icon="create-outline"
+                label={`Alterar perfil de ${m.name}`}
+                onPress={() => {
+                  setEditRole(m.role);
+                  setEditing(m);
+                }}
+              />
+            )}
+            {isAdmin && m.id !== user?.id && <IconButton icon="person-remove-outline" label={`Remover ${m.name}`} color={colors.expense} onPress={() => askRemove(m)} />}
           </View>
         ))}
       </Card>
@@ -77,17 +117,14 @@ export default function TeamScreen() {
         <TextField label="Nome" value={name} onChangeText={setName} error={errors.name} placeholder="Nome completo" />
         <TextField label="E-mail" value={email} onChangeText={setEmail} error={errors.email} autoCapitalize="none" keyboardType="email-address" placeholder="pessoa@empresa.com" />
         <TextField label="Senha provisória" value={password} onChangeText={setPassword} error={errors.password} secureTextEntry hint="A pessoa poderá trocar depois." />
-        <Segmented
-          label="Perfil de acesso"
-          value={role}
-          onChange={setRole}
-          options={[
-            { value: 'admin', label: 'Admin' },
-            { value: 'financeiro', label: 'Financeiro' },
-            { value: 'leitura', label: 'Leitura' },
-          ]}
-        />
+        <Segmented label="Perfil de acesso" value={role} onChange={setRole} options={roleOptions} />
         <Muted>{roleInfo[role].description}</Muted>
+      </FormModal>
+
+      <FormModal visible={!!editing} title="Perfil de acesso" submitLabel="Salvar" onClose={() => setEditing(null)} onSubmit={submitRole}>
+        <Muted style={{ marginBottom: spacing.lg }}>{editing?.name}</Muted>
+        <Segmented value={editRole} onChange={setEditRole} options={roleOptions} />
+        <Muted style={{ marginTop: spacing.md }}>{roleInfo[editRole].description}</Muted>
       </FormModal>
     </Screen>
   );
