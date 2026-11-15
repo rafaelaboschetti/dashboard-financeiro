@@ -3,7 +3,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import * as authDb from '@/db/auth';
 import { createUser, getCompanies, getSessionUserId, getUsers, registerCompany, setSessionUserId, verifyLogin } from '@/db/auth';
 import { checkRemoval, checkRoleChange } from '@/domain/team';
-import { cancelBillNotifications } from '@/lib/billNotifications';
+import { cancelBillNotifications } from '@/lib/alerts';
 import { passwordError } from '@/lib/validation';
 import { Company, Role, User } from '@/types';
 

@@ -1,5 +1,5 @@
-import { MAX_SCHEDULED, planBillReminders } from '@/domain/billReminders';
-import { Bill } from '@/types';
+import { MAX_SCHEDULED, planAllAlerts, planBillReminders, planGeneralReminders } from '@/domain/alerts';
+import { Bill, Reminder } from '@/types';
 
 const bill = (over: Partial<Bill>): Bill => ({
   id: over.id ?? 'b1',
@@ -52,5 +52,24 @@ describe('avisos de contas a vencer', () => {
     const planned = planBillReminders(many, now);
     expect(planned).toHaveLength(MAX_SCHEDULED);
     expect(planned.every((r, i) => i === 0 || planned[i - 1].date <= r.date)).toBe(true);
+  });
+});
+
+describe('avisos de lembretes', () => {
+  const lembrete = (over: Partial<Reminder>): Reminder => ({ id: 'r1', title: 'Reunião com contador', date: '2026-11-18', priority: 'alta', done: false, ...over });
+
+  it('avisa às 9h do dia do lembrete, com as observações', () => {
+    const [r] = planGeneralReminders([lembrete({ notes: 'Levar extratos' })], now);
+    expect(local(r.date)).toEqual([2026, 11, 18, 9, 0]);
+    expect(r).toMatchObject({ url: '/lembretes', title: 'Lembrete: Reunião com contador', body: 'Levar extratos · prioridade alta' });
+  });
+
+  it('não avisa lembretes concluídos ou que já passaram', () => {
+    expect(planGeneralReminders([lembrete({ done: true }), lembrete({ id: 'r2', date: '2026-11-10' })], now)).toHaveLength(0);
+  });
+
+  it('contas e lembretes juntos, em ordem e com o tocar levando à tela certa', () => {
+    const all = planAllAlerts([bill({ dueDate: '2026-11-25' })], [lembrete({})], now);
+    expect(all.map((a) => a.url)).toEqual(['/lembretes', '/contas']);
   });
 });

@@ -8,7 +8,7 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 
 - **Painel inicial**: saldo em caixa, alerta de contas vencidas, atalhos, próximas contas, metas e gráfico dos últimos 6 meses.
 - **Contas a pagar**: vencimento, categoria, recorrência (mensal/anual) e aviso antecipado. Ao marcar como paga, a saída é lançada no caixa.
-- **Avisos de contas a vencer** (celular): notificação às 9h conforme o "avisar antes" de cada conta; ligar em *Meu perfil*. Reagendados sempre que as contas mudam e cancelados ao sair da conta. Na web não há avisos (o navegador não agenda).
+- **Avisos de contas e lembretes** (celular): notificação às 9h conforme o "avisar antes" de cada conta e no dia de cada lembrete; ligar em *Meu perfil*. Reagendados sempre que as contas mudam e cancelados ao sair da conta. Na web não há avisos (o navegador não agenda).
 - **Caixa**: entradas e saídas por categoria.
 - **Metas**: objetivos financeiros com progresso.
 - **Lembretes** gerais da empresa.
@@ -86,8 +86,8 @@ Limitações conhecidas: na **versão web** a chave fica no próprio navegador, 
 ```
 src/
   app/          rotas (Expo Router): (auth)/ login e cadastro, (app)/ telas do app
-  components/   componentes de interface reutilizáveis
-  domain/       regras de negócio em funções puras (testáveis, sem React)
+  components/   componentes de interface reutilizáveis (forms/: formulários de conta e de movimentação)
+  domain/       regras de negócio em funções puras (dados, equipe e avisos; testáveis, sem React)
   context/      AuthContext (usuários e sessão) e DataContext (estado + permissões + gravação)
   db/           persistência local, usuários e dados de exemplo
   lib/          formatação, regras financeiras e hooks

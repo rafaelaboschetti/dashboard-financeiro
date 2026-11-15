@@ -87,13 +87,13 @@ export default function ProfileScreen() {
       <Card style={{ marginTop: spacing.xl, gap: spacing.sm }}>
         <View style={styles.notifRow}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={styles.notifTitle}>Avisos de contas a vencer</Text>
+            <Text style={styles.notifTitle}>Avisos de contas e lembretes</Text>
             <Muted>
               {!notifications.supported
                 ? 'Disponível no app de celular (o navegador não agenda avisos).'
                 : notifications.enabled
-                  ? `Ligado neste aparelho · ${notifications.scheduledCount} aviso(s) agendado(s), às 9h, conforme o "avisar antes" de cada conta.`
-                  : 'Receba um aviso no celular antes do vencimento de cada conta.'}
+                  ? `Ligado neste aparelho · ${notifications.scheduledCount} aviso(s) agendado(s), às 9h: contas conforme o "avisar antes" e lembretes no dia.`
+                  : 'Receba um aviso no celular antes do vencimento de cada conta e no dia de cada lembrete.'}
             </Muted>
           </View>
           {notifications.supported && (
@@ -102,7 +102,7 @@ export default function ProfileScreen() {
               onValueChange={toggleNotifications}
               disabled={notifBusy}
               trackColor={{ true: colors.primary, false: colors.border }}
-              accessibilityLabel="Avisos de contas a vencer"
+              accessibilityLabel="Avisos de contas e lembretes"
             />
           )}
         </View>

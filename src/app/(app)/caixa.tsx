@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { CategoryPicker, DateField, MoneyField, Segmented, TextField } from '@/components/Fields';
-import { FormModal } from '@/components/FormModal';
+import { TransactionForm } from '@/components/forms/TransactionForm';
 import { Screen } from '@/components/Screen';
 import { Card, Chips, EmptyState, Grid, IconButton, IconCircle, Muted, StatCard } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
+import type { NewTransaction } from '@/domain/companyData';
 import { totals, transactionsOfMonth } from '@/lib/finance';
-import { brToISO, currentMonthKey, formatMoney, isoToBR, monthLabel, shiftMonthKey, todayISO } from '@/lib/format';
+import { currentMonthKey, formatMoney, isoToBR, monthLabel, shiftMonthKey } from '@/lib/format';
 import { confirmAction } from '@/lib/confirm';
 import { useNewParam } from '@/lib/useNewParam';
 import { colors, spacing } from '@/theme';
@@ -18,53 +18,21 @@ type Filter = 'todos' | TransactionType;
 
 export default function CashScreen() {
   const { canEdit } = useAuth();
-  const { transactions, categories, addTransaction, updateTransaction, addCategory, removeTransaction } = useData();
+  const { transactions, categories, addTransaction, updateTransaction, removeTransaction } = useData();
   const [month, setMonth] = useState(currentMonthKey());
   const [filter, setFilter] = useState<Filter>('todos');
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Transaction | null>(null);
+  // `key` muda a cada abertura para o formulário recomeçar com os dados certos.
+  const [form, setForm] = useState<{ open: boolean; tx: Transaction | null; key: number }>({ open: false, tx: null, key: 0 });
 
-  const [type, setType] = useState<TransactionType>('in');
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState(0);
-  const [date, setDate] = useState('');
-  const [category, setCategory] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const catsFor = (t: TransactionType) => categories.filter((c) => c.type === t);
-
-  /** Abre o formulário vazio (nova movimentação) ou preenchido com a movimentação a editar. */
-  function openForm(tx?: Transaction) {
-    const t = tx?.type ?? 'in';
-    setEditing(tx ?? null);
-    setType(t);
-    setDescription(tx?.description ?? '');
-    setAmount(tx?.amount ?? 0);
-    setDate(isoToBR(tx?.date ?? todayISO()));
-    setCategory(tx?.category ?? catsFor(t)[0]?.name ?? 'Outras receitas');
-    setErrors({});
-    setOpen(true);
-  }
+  const openForm = (tx?: Transaction) => setForm((f) => ({ open: true, tx: tx ?? null, key: f.key + 1 }));
+  const closeForm = () => setForm((f) => ({ ...f, open: false }));
   useNewParam(() => canEdit && openForm());
 
-  function changeType(t: TransactionType) {
-    setType(t);
-    setCategory(catsFor(t)[0]?.name ?? 'Outros');
-  }
-
-  function submit() {
-    const e: Record<string, string> = {};
-    const iso = brToISO(date);
-    if (!description.trim()) e.description = 'Descreva a movimentação.';
-    if (amount <= 0) e.amount = 'Informe um valor maior que zero.';
-    if (!iso) e.date = 'Data inválida.';
-    setErrors(e);
-    if (Object.keys(e).length || !iso) return;
-    const values = { type, description: description.trim(), amount, date: iso, category };
-    if (editing) updateTransaction(editing.id, values);
+  function save(values: NewTransaction) {
+    if (form.tx) updateTransaction(form.tx.id, values);
     else addTransaction(values);
-    setMonth(iso.slice(0, 7));
-    setOpen(false);
+    setMonth(values.date.slice(0, 7));
+    closeForm();
   }
 
   const ofMonth = transactionsOfMonth(transactions, month);
@@ -121,31 +89,13 @@ export default function CashScreen() {
                 {t.type === 'in' ? '+' : '-'} {formatMoney(t.amount)}
               </Text>
               {canEdit && <IconButton icon="create-outline" label="Editar movimentação" onPress={() => openForm(t)} />}
-              {canEdit && <IconButton icon="trash-outline" label="Excluir movimentação" onPress={() => confirmAction('Excluir movimentação', `Excluir "${t.description}"?`, () => removeTransaction(t.id))} />}
+              {canEdit && <IconButton icon="trash-outline" label="Excluir movimentação" onPress={() => confirmAction('Excluir movimentação', t.billId ? `Excluir "${t.description}"? A conta volta para "a pagar".` : `Excluir "${t.description}"?`, () => removeTransaction(t.id))} />}
             </View>
           ))
         )}
       </Card>
 
-      <FormModal visible={open} title={editing ? 'Editar movimentação' : 'Nova movimentação'} submitLabel={editing ? 'Salvar alterações' : 'Salvar'} onClose={() => setOpen(false)} onSubmit={submit}>
-        {editing?.billId ? (
-          <Muted>Pagamento de conta: a conta a pagar será atualizada junto.</Muted>
-        ) : (
-          <Segmented
-            value={type}
-            onChange={changeType}
-            options={[
-              { value: 'in', label: 'Entrada' },
-              { value: 'out', label: 'Saída' },
-            ]}
-          />
-        )}
-        <View style={{ height: spacing.lg }} />
-        <TextField label="Descrição" value={description} onChangeText={setDescription} error={errors.description} placeholder={type === 'in' ? 'Ex.: Venda de produtos' : 'Ex.: Compra de material'} />
-        <MoneyField label="Valor" value={amount} onChange={setAmount} error={errors.amount} />
-        <DateField label="Data" value={date} onChange={setDate} error={errors.date} shortcuts={false} />
-        <CategoryPicker options={catsFor(type)} value={category} onChange={setCategory} onCreate={(name) => { addCategory({ name, type }); setCategory(name); }} />
-      </FormModal>
+      <TransactionForm key={form.key} visible={form.open} transaction={form.tx} onClose={closeForm} onSubmit={save} />
     </Screen>
   );
 }

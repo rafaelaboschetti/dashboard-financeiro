@@ -2,7 +2,7 @@
  * Versão web: navegadores não suportam agendar notificações do expo-notifications,
  * então os avisos de contas a vencer existem só no app de celular.
  */
-import { Bill } from '@/types';
+import { Bill, Reminder } from '@/types';
 
 export const notificationsSupported = false;
 
@@ -18,7 +18,7 @@ export async function requestPermission(): Promise<boolean> {
 
 export function openSystemSettings() {}
 
-export async function syncBillNotifications(_bills: Bill[]): Promise<number> {
+export async function syncNotifications(_bills: Bill[], _reminders: Reminder[]): Promise<number> {
   return 0;
 }
 

@@ -2,7 +2,7 @@ import { type Href, router } from 'expo-router';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { KEYS, read, write } from '@/db/storage';
-import * as billNotifications from '@/lib/billNotifications';
+import * as alerts from '@/lib/alerts';
 import { useData } from './DataContext';
 
 interface NotificationsContextValue {
@@ -21,18 +21,18 @@ interface NotificationsContextValue {
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-/** Mantém os avisos de contas a vencer agendados conforme as contas mudam. */
+/** Mantém os avisos (contas a vencer e lembretes) agendados conforme os dados mudam. */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { bills, ready } = useData();
+  const { bills, reminders, ready } = useData();
   const [enabled, setEnabledState] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [scheduledCount, setScheduledCount] = useState(0);
 
   // Lê a preferência e a permissão atual ao entrar.
   useEffect(() => {
-    if (!billNotifications.notificationsSupported) return;
+    if (!alerts.notificationsSupported) return;
     let cancelled = false;
-    Promise.all([read<{ enabled: boolean }>(KEYS.notifications, { enabled: false }), billNotifications.getPermissionState()]).then(([pref, permission]) => {
+    Promise.all([read<{ enabled: boolean }>(KEYS.notifications, { enabled: false }), alerts.getPermissionState()]).then(([pref, permission]) => {
       if (cancelled) return;
       setBlocked(permission === 'denied');
       setEnabledState(pref.enabled && permission === 'granted');
@@ -43,37 +43,37 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Tocar no aviso abre a tela de contas.
-  useEffect(() => billNotifications.onNotificationTap((url) => router.push(url as Href)), []);
+  useEffect(() => alerts.onNotificationTap((url) => router.push(url as Href)), []);
 
   // Reagenda sempre que as contas mudam (com uma pequena espera para agrupar alterações).
   useEffect(() => {
     if (!enabled || !ready) return;
     const timer = setTimeout(() => {
-      billNotifications
-        .syncBillNotifications(bills)
+      alerts
+        .syncNotifications(bills, reminders)
         .then(setScheduledCount)
         .catch(() => setScheduledCount(0));
     }, 800);
     return () => clearTimeout(timer);
-  }, [enabled, ready, bills]);
+  }, [enabled, ready, bills, reminders]);
 
   const setEnabled = useCallback(async (on: boolean) => {
     if (!on) {
-      await billNotifications.cancelBillNotifications();
+      await alerts.cancelBillNotifications();
       await write(KEYS.notifications, { enabled: false });
       setEnabledState(false);
       setScheduledCount(0);
       return false;
     }
-    const granted = await billNotifications.requestPermission();
-    setBlocked(!granted && (await billNotifications.getPermissionState()) === 'denied');
+    const granted = await alerts.requestPermission();
+    setBlocked(!granted && (await alerts.getPermissionState()) === 'denied');
     await write(KEYS.notifications, { enabled: granted });
     setEnabledState(granted);
     return granted;
   }, []);
 
   const value = useMemo<NotificationsContextValue>(
-    () => ({ supported: billNotifications.notificationsSupported, enabled, blocked, scheduledCount, setEnabled, openSettings: billNotifications.openSystemSettings }),
+    () => ({ supported: alerts.notificationsSupported, enabled, blocked, scheduledCount, setEnabled, openSettings: alerts.openSystemSettings }),
     [enabled, blocked, scheduledCount, setEnabled],
   );
 
