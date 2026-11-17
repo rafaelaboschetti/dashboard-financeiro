@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { AuthShell } from '@/components/AuthShell';
-import { Checkbox, PasswordField, TextField } from '@/components/Fields';
+import { PasswordField, TextField } from '@/components/Fields';
 import { Button } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { isValidEmail, passwordError } from '@/lib/validation';
@@ -15,7 +15,6 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [withDemo, setWithDemo] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +29,7 @@ export default function RegisterScreen() {
     if (Object.keys(e).length) return;
 
     setBusy(true);
-    const err = await register({ companyName, name, email, password, withDemo });
+    const err = await register({ companyName, name, email, password });
     if (err) setErrors({ email: err });
     setBusy(false);
   }
@@ -51,7 +50,6 @@ export default function RegisterScreen() {
         showStrength
       />
 
-      <Checkbox label="Começar com dados de exemplo (para conhecer o app)" checked={withDemo} onChange={setWithDemo} />
 
       <Button label="Criar conta" onPress={submit} loading={busy} />
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: spacing.xl }}>

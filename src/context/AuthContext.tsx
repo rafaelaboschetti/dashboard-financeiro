@@ -17,7 +17,7 @@ interface AuthContextValue {
   canEdit: boolean;
   /** `remember`: manter conectado por 30 dias (senão, a sessão termina ao fechar o app). */
   login: (email: string, password: string, remember?: boolean) => Promise<string | null>;
-  register: (input: { companyName: string; name: string; email: string; password: string; withDemo: boolean }) => Promise<string | null>;
+  register: (input: { companyName: string; name: string; email: string; password: string}) => Promise<string | null>;
   logout: () => Promise<void>;
   addMember: (input: { name: string; email: string; password: string; role: Role }) => Promise<string | null>;
   /** Só administradores; a empresa nunca fica sem administrador. Retorna o erro, ou null. */
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (input: { companyName: string; name: string; email: string; password: string; withDemo: boolean }) => {
+    async (input: { companyName: string; name: string; email: string; password: string}) => {
       try {
         const u = await registerCompany(input);
         await setSessionUserId(u.id);

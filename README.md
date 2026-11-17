@@ -17,7 +17,7 @@ Feito com **React Native + Expo (SDK 57)**, **TypeScript** e **Expo Router**. Ro
 - **Equipe e permissões**: perfis Administrador, Financeiro e Leitura; o administrador muda o perfil e remove membros (a empresa nunca fica sem administrador).
 - **Minha conta**: trocar senha (conferindo a atual e recusando repetir a mesma) e nome; botão para mostrar/ocultar a senha.
 - **Edição de registros**: contas, movimentações, metas, lembretes e categorias. Editar uma conta paga atualiza a saída no caixa (e vice-versa); renomear uma categoria atualiza os lançamentos.
-- **Guia de primeiros passos**: abre sozinho no primeiro acesso de cada pessoa e fica em *Mais → Como usar o app*; os passos mudam conforme o perfil (Leitura, Financeiro, Administrador) e a plataforma.
+- **Tutorial ilustrado com o robô Fin**: abre sozinho no primeiro acesso e fica em *Mais → Como usar o app*. Em réplicas das telas, o robô aponta onde tocar para adicionar uma conta, escolher os dias de aviso, marcar como paga, desfazer, editar e excluir — e o mesmo para caixa, metas, lembretes, relatórios, avisos, equipe e conta. Os passos mudam conforme o perfil e a plataforma.
 - **Layout responsivo**: abas embaixo no celular, menu lateral em tablet/computador.
 
 > Os dados ficam salvos **no próprio aparelho** (AsyncStorage). Cada celular tem os seus dados; ainda não há sincronização na nuvem. Veja o [PLANO.md](PLANO.md) para os próximos passos.
@@ -32,7 +32,7 @@ npm start          # abre o servidor; leia o QR code com o app Expo Go no celula
 npm run web        # abre no navegador
 ```
 
-Na tela de cadastro, deixe marcado **"Começar com dados de exemplo"** para ver o app já preenchido.
+Ao entrar pela primeira vez, o app abre um **tutorial ilustrado** (com o robô Fin) que mostra passo a passo como cadastrar, editar e excluir contas, movimentações, metas e lembretes. A empresa começa vazia, sem dados fictícios.
 
 ## Verificações
 
@@ -90,7 +90,7 @@ src/
   components/   componentes de interface reutilizáveis (forms/: formulários de conta e de movimentação)
   domain/       regras de negócio em funções puras (dados, equipe e avisos; testáveis, sem React)
   context/      AuthContext (usuários e sessão) e DataContext (estado + permissões + gravação)
-  db/           persistência local, usuários e dados de exemplo
+  db/           persistência local, usuários e categorias padrão
   lib/          formatação, regras financeiras e hooks
   theme/        cores, espaçamentos e breakpoints
 assets/         ícones e imagem da tela de abertura

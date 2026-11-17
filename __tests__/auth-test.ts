@@ -62,12 +62,15 @@ describe('migração de dados antigos (sem criptografia)', () => {
 
 describe('login', () => {
   it('cadastra empresa, abre sessão e faz login', async () => {
-    const u = await auth.registerCompany({ companyName: 'Loja', name: 'Bia', email: 'bia@x.com', password: 'segredo123', withDemo: true });
+    const u = await auth.registerCompany({ companyName: 'Loja', name: 'Bia', email: 'bia@x.com', password: 'segredo123' });
     await auth.setSessionUserId(u.id);
     expect(await auth.getSessionUserId()).toBe(u.id);
     expect((await auth.verifyLogin('bia@x.com', 'segredo123')).user?.id).toBe(u.id);
-    const data = await storage.read<{ bills: unknown[] } | null>(`fin:data:${u.companyId}`, null);
-    expect(data?.bills.length).toBeGreaterThan(0);
+    // Empresa nova começa vazia (sem dados fictícios), só com as categorias padrão.
+    const data = await storage.read<{ bills: unknown[]; transactions: unknown[]; categories: unknown[] } | null>(`fin:data:${u.companyId}`, null);
+    expect(data?.bills).toEqual([]);
+    expect(data?.transactions).toEqual([]);
+    expect(data?.categories.length).toBeGreaterThan(0);
   });
 
   it('não permite dois usuários com o mesmo e-mail', async () => {

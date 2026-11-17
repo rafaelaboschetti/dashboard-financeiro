@@ -6,7 +6,7 @@ import * as Crypto from 'expo-crypto';
 import { uid } from '@/lib/format';
 import { utf8Encode } from '@/lib/utf8';
 import { Company, Role, User } from '@/types';
-import { demoCompanyData, emptyCompanyData } from './seed';
+import { emptyCompanyData } from './seed';
 import { KEYS, read, remove, write } from './storage';
 
 /* ---------- senha ---------- */
@@ -171,11 +171,11 @@ export async function changePassword(userId: string, currentPassword: string, ne
 }
 
 /** Cria uma empresa nova + o primeiro usuário (administrador). */
-export async function registerCompany(input: { companyName: string; name: string; email: string; password: string; withDemo: boolean }): Promise<User> {
+export async function registerCompany(input: { companyName: string; name: string; email: string; password: string }): Promise<User> {
   const company: Company = { id: uid(), name: input.companyName.trim(), createdAt: new Date().toISOString() };
   const user = await createUser({ companyId: company.id, name: input.name, email: input.email, password: input.password, role: 'admin' });
   await write(KEYS.companies, [...(await getCompanies()), company]);
-  await write(KEYS.data(company.id), input.withDemo ? demoCompanyData() : emptyCompanyData());
+  await write(KEYS.data(company.id), emptyCompanyData());
   return user;
 }
 

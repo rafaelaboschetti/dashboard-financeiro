@@ -13,7 +13,7 @@ npm run typecheck       # checagem de tipos
 npx expo lint           # lint
 ```
 
-Na tela de cadastro, deixe marcado **"Começar com dados de exemplo"** para ver o app preenchido.
+A empresa começa vazia; o tutorial do app (Mais → Como usar o app) mostra como usar cada tela.
 
 ## O que você pediu → onde está
 
@@ -51,7 +51,7 @@ src/
     (app)/               abas: index, contas, caixa, metas, mais + lembretes, relatórios, categorias, equipe, roadmap, perfil
   components/          Screen, ui (Card, Button, Badge...), Fields, FormModal, MonthlyBars, AuthShell
   context/             AuthContext (usuários/sessão) e DataContext (dados da empresa)
-  db/                  storage.ts (persistência), auth.ts (usuários), seed.ts (dados de exemplo)
+  db/                  storage.ts (persistência), auth.ts (usuários), seed.ts (categorias padrão)
   lib/                 formatação de dinheiro/datas, regras financeiras, hooks
   theme/               cores, espaçamentos, breakpoints
 ```

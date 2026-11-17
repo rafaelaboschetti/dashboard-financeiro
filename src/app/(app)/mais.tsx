@@ -22,7 +22,7 @@ export default function MoreScreen() {
     { icon: 'bar-chart-outline', label: 'Relatórios', desc: 'Resumo mensal e despesas por categoria', href: '/relatorios' },
     { icon: 'pricetags-outline', label: 'Categorias', desc: 'Organize entradas e saídas', href: '/categorias' },
     { icon: 'people-outline', label: 'Equipe e permissões', desc: 'Usuários que acessam a empresa', href: '/equipe' },
-    { icon: 'help-circle-outline', label: 'Como usar o app', desc: 'Passo a passo das principais funções', href: '/guia' },
+    { icon: 'help-circle-outline', label: 'Como usar o app', desc: 'Tutorial com o robô Fin, passo a passo', href: '/guia' },
     { icon: 'bulb-outline', label: 'Roadmap e sugestões', desc: 'O que já está no app e o que vem a seguir', href: '/ideias' },
     { icon: 'person-circle-outline', label: 'Meu perfil', desc: 'Dados da conta', href: '/perfil' },
   ];
